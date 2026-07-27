@@ -1,12 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function ResetPasswordForm() {
   const router = useRouter();
-  const params = useSearchParams();
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
@@ -15,55 +14,45 @@ function ResetPasswordForm() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
+    // Supabase's browser client auto-detects the recovery code/tokens in the
+    // URL and exchanges them for a session on its own (detectSessionInUrl).
+    // We must NOT also call exchangeCodeForSession/setSession ourselves --
+    // the code is single-use, and a second manual exchange will always fail
+    // with "invalid or expired" even though the first (automatic) one
+    // already succeeded. Instead we just wait for the session to appear.
     const supabase = createClient();
+    let settled = false;
 
-    async function establishSession() {
-      const code = params.get("code");
-
-      // PKCE flow: a `code` param is present in the URL.
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          setError("This reset link is invalid or has expired. Request a new one.");
-          return;
-        }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (settled) return;
+      if (event === "PASSWORD_RECOVERY" || session) {
+        settled = true;
         setReady(true);
-        return;
       }
+    });
 
-      // Implicit flow: tokens arrive in the URL hash fragment.
-      const hash = window.location.hash.startsWith("#")
-        ? window.location.hash.slice(1)
-        : window.location.hash;
-      const hashParams = new URLSearchParams(hash);
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-
-      if (accessToken && refreshToken) {
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (error) {
-          setError("This reset link is invalid or has expired. Request a new one.");
-          return;
-        }
+    // In case the auto-detect already completed before this listener
+    // attached, check for an existing session directly too.
+    supabase.auth.getSession().then(({ data }) => {
+      if (!settled && data.session) {
+        settled = true;
         setReady(true);
-        return;
       }
+    });
 
-      // No recovery tokens found -- either the link is malformed, or the
-      // user already has an active session and navigated here directly.
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setReady(true);
-      } else {
+    // If nothing shows up after a few seconds, the link really is bad.
+    const timeout = setTimeout(() => {
+      if (!settled) {
         setError("This reset link is invalid or has expired. Request a new one.");
       }
-    }
+    }, 4000);
 
-    establishSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
