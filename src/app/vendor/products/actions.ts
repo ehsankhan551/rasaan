@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { DEFAULT_PRODUCT_CATEGORY } from "@/lib/categories";
 
 async function getOwnShopId(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase.from("shops").select("id").eq("vendor_id", userId).maybeSingle();
@@ -22,6 +23,7 @@ export async function addProduct(formData: FormData) {
   const description = String(formData.get("description") || "").trim();
   const price = Number(formData.get("price") || 0);
   const stockQty = Number(formData.get("stock_qty") || 0);
+  const category = String(formData.get("category") || "").trim() || DEFAULT_PRODUCT_CATEGORY;
 
   if (!name || price < 0) return;
 
@@ -31,6 +33,7 @@ export async function addProduct(formData: FormData) {
     description,
     price,
     stock_qty: stockQty,
+    category,
   });
 
   revalidatePath("/vendor/products");
@@ -62,6 +65,7 @@ export async function updateProduct(
     price: number;
     stock_qty: number;
     image_url: string;
+    category: string;
   }
 ) {
   const supabase = await createClient();
@@ -75,6 +79,7 @@ export async function updateProduct(
   const price = Number(data.price);
   const stockQty = Number(data.stock_qty);
   const imageUrl = data.image_url.trim();
+  const category = data.category.trim() || DEFAULT_PRODUCT_CATEGORY;
 
   if (!name || !Number.isFinite(price) || price < 0) return;
 
@@ -86,6 +91,7 @@ export async function updateProduct(
       price,
       stock_qty: Number.isFinite(stockQty) ? stockQty : 0,
       image_url: imageUrl || null,
+      category,
     })
     .eq("id", productId);
 
@@ -98,6 +104,7 @@ type ImportRow = {
   price: number;
   stock_qty: number;
   image_url: string;
+  category: string;
   active: boolean;
 };
 
@@ -137,6 +144,7 @@ export async function bulkUpsertProducts(rows: ImportRow[]) {
       price,
       stock_qty: Number.isFinite(stockQtyNum) ? stockQtyNum : 0,
       image_url: row.image_url?.trim() || null,
+      category: row.category?.trim() || DEFAULT_PRODUCT_CATEGORY,
       active: row.active !== false,
     };
 
