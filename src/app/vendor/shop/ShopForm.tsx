@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveShop, type ShopFormState } from "./actions";
 
 type Shop = {
@@ -12,12 +12,39 @@ type Shop = {
   phone: string | null;
   self_delivery: boolean;
   approved: boolean;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 const initialState: ShopFormState = null;
 
 export default function ShopForm({ shop }: { shop: Shop | null }) {
   const [state, formAction, pending] = useActionState(saveShop, initialState);
+  const [lat, setLat] = useState(shop?.latitude != null ? String(shop.latitude) : "");
+  const [lng, setLng] = useState(shop?.longitude != null ? String(shop.longitude) : "");
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setLocError("Geolocation is not supported by your browser.");
+      return;
+    }
+    setLocating(true);
+    setLocError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLat(String(pos.coords.latitude));
+        setLng(String(pos.coords.longitude));
+        setLocating(false);
+      },
+      (err) => {
+        setLocError(err.message || "Could not get your location.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
 
   return (
     <form action={formAction} className="space-y-4 max-w-lg">
@@ -84,6 +111,44 @@ export default function ShopForm({ shop }: { shop: Shop | null }) {
         <input type="checkbox" name="self_delivery" defaultChecked={shop?.self_delivery} />
         My shop can deliver its own orders (in addition to platform riders)
       </label>
+
+      <div className="rounded-xl border border-gray-200 p-4">
+        <p className="text-sm font-medium mb-1">Shop location</p>
+        <p className="text-xs text-gray-500 mb-3">
+          Used to show your shop to nearby customers on the homepage.
+        </p>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Latitude</label>
+            <input
+              name="latitude"
+              value={lat}
+              onChange={(e) => setLat(e.target.value)}
+              placeholder="e.g. 34.1453"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Longitude</label>
+            <input
+              name="longitude"
+              value={lng}
+              onChange={(e) => setLng(e.target.value)}
+              placeholder="e.g. 71.7444"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={useMyLocation}
+          disabled={locating}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+        >
+          {locating ? "Locating..." : "Use my current location"}
+        </button>
+        {locError && <p className="text-xs text-red-500 mt-2">{locError}</p>}
+      </div>
 
       {state?.error && (
         <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
