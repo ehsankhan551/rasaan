@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addProduct } from "./actions";
 import ProductRow from "./ProductRow";
 import ImportExportBar from "./ImportExportBar";
+import { PRODUCT_CATEGORIES, DEFAULT_PRODUCT_CATEGORY } from "@/lib/categories";
 
 export default async function AdminShopProductsPage({
   params,
@@ -27,7 +28,7 @@ export default async function AdminShopProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, description, price, stock_qty, active, image_url")
+    .select("id, name, description, price, stock_qty, active, image_url, category")
     .eq("shop_id", shop.id)
     .order("created_at", { ascending: false });
 
@@ -44,7 +45,7 @@ export default async function AdminShopProductsPage({
 
       <ImportExportBar shopId={shop.id} products={products ?? []} />
 
-      <form action={addProductWithShop} className="grid gap-3 sm:grid-cols-5 mb-8 items-end">
+      <form action={addProductWithShop} className="grid gap-3 sm:grid-cols-6 mb-8 items-end">
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium mb-1">Name</label>
           <input name="name" required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
@@ -70,10 +71,24 @@ export default async function AdminShopProductsPage({
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
+        <div>
+          <label className="block text-xs font-medium mb-1">Category</label>
+          <select
+            name="category"
+            defaultValue={DEFAULT_PRODUCT_CATEGORY}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          >
+            {PRODUCT_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
         <button className="rounded-lg bg-green-700 text-white px-4 py-2 text-sm font-semibold">
           Add product
         </button>
-        <div className="sm:col-span-5">
+        <div className="sm:col-span-6">
           <label className="block text-xs font-medium mb-1">Description</label>
           <input name="description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
         </div>
@@ -86,6 +101,7 @@ export default async function AdminShopProductsPage({
           <thead>
             <tr className="text-xs text-gray-500">
               <th className="pb-2 font-medium">Product</th>
+              <th className="pb-2 font-medium">Category</th>
               <th className="pb-2 font-medium">Price</th>
               <th className="pb-2 font-medium">Stock</th>
               <th className="pb-2 font-medium">Status</th>
