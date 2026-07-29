@@ -20,11 +20,28 @@ export default async function SiteHeader() {
 
   return (
     <header className="border-b border-gray-200 bg-white">
-      <div className="mx-auto max-w-6xl flex items-center justify-between px-4 py-3">
-        <Link href="/" className="font-bold text-lg text-green-800">
+      <div className="mx-auto max-w-6xl flex items-center justify-between gap-4 px-4 py-3">
+        <Link href="/" className="font-bold text-lg text-green-800 shrink-0">
           Rasaan
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
+        <form action="/products" method="get" className="hidden sm:flex flex-1 max-w-md">
+          <input
+            type="text"
+            name="q"
+            placeholder="Search products..."
+            className="w-full rounded-l-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-r-lg border border-l-0 border-gray-300 bg-gray-50 px-3 text-sm text-gray-600 hover:bg-gray-100"
+          >
+            Search
+          </button>
+        </form>
+        <nav className="flex items-center gap-4 text-sm shrink-0">
+          <Link href="/products" className="text-gray-600 hover:text-gray-900">
+            Browse Products
+          </Link>
           <Link href="/shops" className="text-gray-600 hover:text-gray-900">
             Browse Shops
           </Link>
