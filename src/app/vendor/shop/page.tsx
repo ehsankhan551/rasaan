@@ -11,7 +11,9 @@ export default async function VendorShopPage() {
 
   const { data: shop } = await supabase
     .from("shops")
-    .select("id, name, description, category, address, phone, self_delivery, approved")
+    .select(
+      "id, name, description, category, address, phone, self_delivery, approved, latitude, longitude"
+    )
     .eq("vendor_id", user.id)
     .maybeSingle();
 
