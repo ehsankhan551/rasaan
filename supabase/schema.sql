@@ -52,6 +52,8 @@ create table if not exists shops (
   self_delivery boolean not null default false,
   approved boolean not null default false,
   active boolean not null default true,
+  latitude double precision,
+  longitude double precision,
   created_at timestamptz not null default now()
 );
 
@@ -231,7 +233,7 @@ create policy "deliveries_rider_update_own" on deliveries
 create policy "deliveries_vendor_read" on deliveries
   for select using (
     exists (select 1 from orders o join shops s on s.id = o.shop_id
-            where o.id = order_id and s.vendor_id = auth.uid())
+      where o.id = order_id and s.vendor_id = auth.uid())
   );
 create policy "deliveries_admin_all" on deliveries
   for all using (public.is_admin());
@@ -254,7 +256,6 @@ create policy "orders_rider_read_unassigned_pool" on orders
     and exists (select 1 from deliveries d where d.order_id = orders.id and d.status = 'unassigned')
   );
 
-
 -- PAYMENTS: customer reads own order's payments; admin reads all; vendor reads own shop's.
 create policy "payments_customer_read" on payments
   for select using (
@@ -263,7 +264,7 @@ create policy "payments_customer_read" on payments
 create policy "payments_vendor_read" on payments
   for select using (
     exists (select 1 from orders o join shops s on s.id = o.shop_id
-            where o.id = order_id and s.vendor_id = auth.uid())
+      where o.id = order_id and s.vendor_id = auth.uid())
   );
 create policy "payments_admin_all" on payments
   for all using (public.is_admin());
@@ -280,6 +281,6 @@ create policy "rider_status_read_all" on rider_status
 
 -- ===========================================================
 -- Make the FIRST account you create an admin manually:
---   update profiles set role = 'admin' where id = '<your-user-uuid>';
+-- update profiles set role = 'admin' where id = '<your-user-uuid>';
 -- (Find your uuid in Supabase Dashboard -> Authentication -> Users)
 -- ===========================================================
