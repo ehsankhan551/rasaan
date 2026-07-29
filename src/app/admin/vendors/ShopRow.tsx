@@ -29,6 +29,12 @@ export default function ShopRow({ shop }: { shop: Shop }) {
         >
           Manage Products
         </Link>
+        <Link
+          href={`/admin/vendors/${shop.id}/settings`}
+          className="rounded-lg border border-gray-300 text-xs font-medium px-3 py-1.5 text-gray-700"
+        >
+          Settings
+        </Link>
         {!shop.approved && (
           <button
             disabled={pending}
