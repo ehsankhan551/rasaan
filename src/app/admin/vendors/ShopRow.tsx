@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTransition } from "react";
 import { approveShop, setShopActive } from "./actions";
 
@@ -22,6 +23,12 @@ export default function ShopRow({ shop }: { shop: Shop }) {
         <p className="text-xs text-gray-500">{shop.category} · {shop.address}</p>
       </div>
       <div className="flex gap-2 items-center">
+        <Link
+          href={`/admin/vendors/${shop.id}/products`}
+          className="rounded-lg border border-gray-300 text-xs font-medium px-3 py-1.5 text-gray-700"
+        >
+          Manage Products
+        </Link>
         {!shop.approved && (
           <button
             disabled={pending}
