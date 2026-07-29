@@ -53,3 +53,105 @@ export async function deleteProduct(productId: string) {
   await supabase.from("products").delete().eq("id", productId);
   revalidatePath("/vendor/products");
 }
+
+export async function updateProduct(
+  productId: string,
+  data: {
+    name: string;
+    description: string;
+    price: number;
+    stock_qty: number;
+    image_url: string;
+  }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const name = data.name.trim();
+  const description = data.description.trim();
+  const price = Number(data.price);
+  const stockQty = Number(data.stock_qty);
+  const imageUrl = data.image_url.trim();
+
+  if (!name || !Number.isFinite(price) || price < 0) return;
+
+  await supabase
+    .from("products")
+    .update({
+      name,
+      description,
+      price,
+      stock_qty: Number.isFinite(stockQty) ? stockQty : 0,
+      image_url: imageUrl || null,
+    })
+    .eq("id", productId);
+
+  revalidatePath("/vendor/products");
+}
+
+type ImportRow = {
+  name: string;
+  description: string;
+  price: number;
+  stock_qty: number;
+  image_url: string;
+  active: boolean;
+};
+
+export async function bulkUpsertProducts(rows: ImportRow[]) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { inserted: 0, updated: 0, skipped: rows.length };
+
+  const shopId = await getOwnShopId(supabase, user.id);
+  if (!shopId) return { inserted: 0, updated: 0, skipped: rows.length };
+
+  const { data: existing } = await supabase
+    .from("products")
+    .select("id, name")
+    .eq("shop_id", shopId);
+
+  const byName = new Map((existing ?? []).map((p) => [p.name.trim().toLowerCase(), p.id as string]));
+
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const name = row.name?.trim();
+    const price = Number(row.price);
+    if (!name || !Number.isFinite(price) || price < 0) {
+      skipped++;
+      continue;
+    }
+
+    const stockQtyNum = Number(row.stock_qty);
+    const payload = {
+      name,
+      description: row.description?.trim() || "",
+      price,
+      stock_qty: Number.isFinite(stockQtyNum) ? stockQtyNum : 0,
+      image_url: row.image_url?.trim() || null,
+      active: row.active !== false,
+    };
+
+    const existingId = byName.get(name.toLowerCase());
+    if (existingId) {
+      const { error } = await supabase.from("products").update(payload).eq("id", existingId);
+      if (error) skipped++;
+      else updated++;
+    } else {
+      const { error } = await supabase.from("products").insert({ ...payload, shop_id: shopId });
+      if (error) skipped++;
+      else inserted++;
+    }
+  }
+
+  revalidatePath("/vendor/products");
+  return { inserted, updated, skipped };
+}
