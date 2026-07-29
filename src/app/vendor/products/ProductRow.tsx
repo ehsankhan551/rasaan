@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toggleProduct, updateStock, deleteProduct, updateProduct } from "./actions";
+import { PRODUCT_CATEGORIES } from "@/lib/categories";
 
 type Product = {
   id: string;
@@ -11,6 +12,7 @@ type Product = {
   stock_qty: number;
   active: boolean;
   image_url: string | null;
+  category: string;
 };
 
 export default function ProductRow({ product }: { product: Product }) {
@@ -22,12 +24,14 @@ export default function ProductRow({ product }: { product: Product }) {
   const [description, setDescription] = useState(product.description ?? "");
   const [price, setPrice] = useState(product.price);
   const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
+  const [category, setCategory] = useState(product.category);
 
   function cancelEdit() {
     setName(product.name);
     setDescription(product.description ?? "");
     setPrice(product.price);
     setImageUrl(product.image_url ?? "");
+    setCategory(product.category);
     setEditing(false);
   }
 
@@ -39,6 +43,7 @@ export default function ProductRow({ product }: { product: Product }) {
         price,
         stock_qty: stock,
         image_url: imageUrl,
+        category,
       });
       setEditing(false);
     });
@@ -47,8 +52,8 @@ export default function ProductRow({ product }: { product: Product }) {
   if (editing) {
     return (
       <tr className="border-t border-gray-100 bg-gray-50">
-        <td className="py-3 pr-3" colSpan={5}>
-          <div className="grid gap-2 sm:grid-cols-5 items-end">
+        <td className="py-3 pr-3" colSpan={6}>
+          <div className="grid gap-2 sm:grid-cols-6 items-end">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium mb-1">Name</label>
               <input
@@ -78,6 +83,20 @@ export default function ProductRow({ product }: { product: Product }) {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                {PRODUCT_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex gap-2">
               <button
                 disabled={pending}
@@ -94,7 +113,7 @@ export default function ProductRow({ product }: { product: Product }) {
                 Cancel
               </button>
             </div>
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-4">
               <label className="block text-xs font-medium mb-1">Description</label>
               <input
                 value={description}
@@ -122,6 +141,9 @@ export default function ProductRow({ product }: { product: Product }) {
       <td className="py-2 pr-3">
         <p className="font-medium text-sm">{product.name}</p>
         <p className="text-xs text-gray-500">{product.description}</p>
+      </td>
+      <td className="py-2 pr-3">
+        <span className="text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-1">{product.category}</span>
       </td>
       <td className="py-2 pr-3 text-sm">Rs {product.price}</td>
       <td className="py-2 pr-3">
