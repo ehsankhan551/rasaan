@@ -64,9 +64,12 @@ create table if not exists products (
   price numeric(10,2) not null check (price >= 0),
   image_url text,
   stock_qty integer not null default 0,
+  category text not null default 'Other',
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
+
+create index if not exists products_category_idx on products (category);
 
 -- ---------- ORDERS ----------
 create table if not exists orders (
@@ -174,7 +177,7 @@ create policy "products_vendor_read_own" on products
   );
 create policy "products_vendor_write" on products
   for insert with check (
-    exists (select 1 from shops s where s.id = shop_id and s.vendor_id = auth.uid())
+    exists (select 1 from shops s where s.id = shop_id and (s.vendor_id = auth.uid() or public.is_admin()))
   );
 create policy "products_vendor_update" on products
   for update using (
