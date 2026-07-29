@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { addProduct } from "./actions";
 import ProductRow from "./ProductRow";
+import ImportExportBar from "./ImportExportBar";
 
 export default async function VendorProductsPage() {
   const supabase = await createClient();
@@ -27,13 +28,15 @@ export default async function VendorProductsPage() {
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, description, price, stock_qty, active")
+    .select("id, name, description, price, stock_qty, active, image_url")
     .eq("shop_id", shop.id)
     .order("created_at", { ascending: false });
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Products</h1>
+
+      <ImportExportBar products={products ?? []} />
 
       <form action={addProduct} className="grid gap-3 sm:grid-cols-5 mb-8 items-end">
         <div className="sm:col-span-2">
