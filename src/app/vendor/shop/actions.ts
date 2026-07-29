@@ -19,6 +19,10 @@ export async function saveShop(_prev: ShopFormState, formData: FormData): Promis
   const phone = String(formData.get("phone") || "").trim();
   const selfDelivery = formData.get("self_delivery") === "on";
   const shopId = String(formData.get("shop_id") || "");
+  const latRaw = String(formData.get("latitude") || "").trim();
+  const lngRaw = String(formData.get("longitude") || "").trim();
+  const latitude = latRaw ? Number(latRaw) : null;
+  const longitude = lngRaw ? Number(lngRaw) : null;
 
   if (!name || !address) {
     return { error: "Shop name and address are required." };
@@ -27,7 +31,16 @@ export async function saveShop(_prev: ShopFormState, formData: FormData): Promis
   if (shopId) {
     const { error } = await supabase
       .from("shops")
-      .update({ name, description, category, address, phone, self_delivery: selfDelivery })
+      .update({
+        name,
+        description,
+        category,
+        address,
+        phone,
+        self_delivery: selfDelivery,
+        latitude,
+        longitude,
+      })
       .eq("id", shopId)
       .eq("vendor_id", user.id);
     if (error) return { error: error.message };
@@ -40,6 +53,8 @@ export async function saveShop(_prev: ShopFormState, formData: FormData): Promis
       address,
       phone,
       self_delivery: selfDelivery,
+      latitude,
+      longitude,
     });
     if (error) return { error: error.message };
   }
