@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
+import WishlistButton from "@/components/WishlistButton";
 import ReviewForm from "./ReviewForm";
 
 function Stars({ value, size = "text-sm" }: { value: number; size?: string }) {
@@ -59,6 +60,17 @@ export default async function ProductDetailPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  let wishlisted = false;
+  if (user) {
+    const { data: w } = await supabase
+      .from("wishlist_items")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("product_id", product.id)
+      .maybeSingle();
+    wishlisted = !!w;
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <Link href="/products" className="text-sm text-gray-500 hover:underline">
@@ -110,16 +122,22 @@ export default async function ProductDetailPage({
                 <p className="text-sm text-green-600 mb-2">
                   In stock ({product.stock_qty} available)
                 </p>
-                <AddToCartButton
-                  productId={product.id}
-                  name={product.name}
-                  price={Number(product.price)}
-                  shopId={product.shop_id}
-                  shopName={shop?.name ?? ""}
-                />
+                <div className="flex items-center gap-2">
+                  <AddToCartButton
+                    productId={product.id}
+                    name={product.name}
+                    price={Number(product.price)}
+                    shopId={product.shop_id}
+                    shopName={shop?.name ?? ""}
+                  />
+                  <WishlistButton productId={product.id} initialWishlisted={wishlisted} />
+                </div>
               </>
             ) : (
-              <p className="text-sm text-red-500 font-medium">Out of stock</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-red-500 font-medium">Out of stock</p>
+                <WishlistButton productId={product.id} initialWishlisted={wishlisted} />
+              </div>
             )}
           </div>
         </div>
