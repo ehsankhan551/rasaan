@@ -31,7 +31,7 @@ export default async function ProductsPage({
   let query = supabase
     .from("products")
     .select(
-      "id, name, description, price, stock_qty, image_url, category, shop_id, shops!inner(id, name)"
+      "id, name, description, price, sale_price, stock_qty, image_url, category, shop_id, shops!inner(id, name)"
     )
     .eq("active", true);
 
@@ -160,12 +160,16 @@ export default async function ProductsPage({
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {products.map((p: any) => {
             const shop = Array.isArray(p.shops) ? p.shops[0] : p.shops;
+            const hasDeal = p.sale_price && Number(p.sale_price) < Number(p.price);
+            const discountPct = hasDeal
+              ? Math.round((1 - Number(p.sale_price) / Number(p.price)) * 100)
+              : 0;
             return (
               <div
                 key={p.id}
                 className="rounded-xl border border-gray-200 overflow-hidden flex flex-col"
               >
-                <Link href={`/products/${p.id}`} className="block">
+                <Link href={`/products/${p.id}`} className="block relative">
                   <div className="aspect-square bg-gray-100 flex items-center justify-center">
                     {p.image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -178,6 +182,11 @@ export default async function ProductsPage({
                       <span className="text-gray-400 text-sm">No image</span>
                     )}
                   </div>
+                  {hasDeal && (
+                    <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
+                      -{discountPct}%
+                    </span>
+                  )}
                 </Link>
                 <div className="p-4 flex flex-col gap-1 flex-1">
                   <div className="flex items-start justify-between gap-2">
@@ -197,12 +206,19 @@ export default async function ProductsPage({
                     {p.category}
                   </span>
                   <div className="mt-auto flex items-center justify-between pt-2">
-                    <span className="font-bold text-gray-900">Rs {Number(p.price).toFixed(0)}</span>
+                    {hasDeal ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-red-600">Rs {Number(p.sale_price).toFixed(0)}</span>
+                        <span className="text-xs text-gray-400 line-through">Rs {Number(p.price).toFixed(0)}</span>
+                      </div>
+                    ) : (
+                      <span className="font-bold text-gray-900">Rs {Number(p.price).toFixed(0)}</span>
+                    )}
                     {p.stock_qty > 0 ? (
                       <AddToCartButton
                         productId={p.id}
                         name={p.name}
-                        price={Number(p.price)}
+                        price={Number(hasDeal ? p.sale_price : p.price)}
                         shopId={p.shop_id}
                         shopName={shop?.name ?? ""}
                       />
