@@ -57,7 +57,7 @@ export default async function ShopDetailPage({
     if (nextQ) params.set("q", nextQ);
     if (nextLetter) params.set("letter", nextLetter);
     const qs = params.toString();
-    return `/shops/${shop.id}${qs ? `?${qs}` : ""}`;
+    return `/shops/${shopId}${qs ? `?${qs}` : ""}`;
   }
 
   return (
@@ -71,7 +71,7 @@ export default async function ShopDetailPage({
 
       <h2 className="text-lg font-semibold mt-8 mb-4">Products</h2>
 
-      <form className="mb-4 max-w-sm" action={`/shops/${shop.id}`} method="get">
+      <form className="mb-4 max-w-sm" action={`/shops/${shopId}`} method="get">
         {category && <input type="hidden" name="category" value={category} />}
         {letter && <input type="hidden" name="letter" value={letter} />}
         <input
@@ -156,7 +156,7 @@ export default async function ShopDetailPage({
                   productId={p.id}
                   name={p.name}
                   price={Number(p.price)}
-                  shopId={shop.id}
+                  shopId={shopId}
                   shopName={shop.name}
                 />
               ) : (
