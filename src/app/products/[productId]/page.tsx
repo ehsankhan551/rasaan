@@ -2,6 +2,17 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
+import ReviewForm from "./ReviewForm";
+
+function Stars({ value, size = "text-sm" }: { value: number; size?: string }) {
+  const rounded = Math.round(value);
+  return (
+    <span className={`${size} text-yellow-400 tracking-tight`}>
+      {"★".repeat(rounded)}
+      <span className="text-gray-300">{"★".repeat(5 - rounded)}</span>
+    </span>
+  );
+}
 
 export default async function ProductDetailPage({
   params,
@@ -32,6 +43,22 @@ export default async function ProductDetailPage({
     .neq("id", product.id)
     .limit(4);
 
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("id, rating, comment, created_at")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false });
+
+  const reviewCount = reviews?.length ?? 0;
+  const avgRating =
+    reviewCount > 0
+      ? (reviews as any[]).reduce((sum, r) => sum + r.rating, 0) / reviewCount
+      : 0;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <Link href="/products" className="text-sm text-gray-500 hover:underline">
@@ -59,6 +86,18 @@ export default async function ProductDetailPage({
           <span className="inline-block mt-2 text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-1">
             {product.category}
           </span>
+
+          {reviewCount > 0 ? (
+            <div className="flex items-center gap-2 mt-2">
+              <Stars value={avgRating} />
+              <span className="text-sm text-gray-600">
+                {avgRating.toFixed(1)} ({reviewCount} review{reviewCount === 1 ? "" : "s"})
+              </span>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 mt-2">No reviews yet</p>
+          )}
+
           <p className="text-2xl font-bold text-gray-900 mt-4">
             Rs {Number(product.price).toFixed(0)}
           </p>
@@ -84,6 +123,41 @@ export default async function ProductDetailPage({
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <h2 className="text-lg font-semibold mb-4">
+          Reviews {reviewCount > 0 && `(${reviewCount})`}
+        </h2>
+
+        {user ? (
+          <ReviewForm productId={product.id} />
+        ) : (
+          <p className="text-sm text-gray-500 mb-4">
+            <Link href={`/login?next=/products/${product.id}`} className="text-green-700 hover:underline">
+              Log in
+            </Link>{" "}
+            to leave a review.
+          </p>
+        )}
+
+        {reviewCount > 0 ? (
+          <div className="mt-6 space-y-4">
+            {(reviews as any[]).map((r) => (
+              <div key={r.id} className="border border-gray-200 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <Stars value={r.rating} />
+                  <span className="text-xs text-gray-400">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                {r.comment && <p className="text-sm text-gray-700 mt-2">{r.comment}</p>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 mt-4">Be the first to review this product.</p>
+        )}
       </div>
 
       {related && related.length > 0 && (
