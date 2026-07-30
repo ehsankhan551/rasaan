@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { saveShop, type ShopFormState } from "./actions";
+import { SHOP_TYPES } from "@/lib/categories";
 
 type Shop = {
   id: string;
@@ -67,13 +68,11 @@ export default function ShopForm({ shop }: { shop: Shop | null }) {
           defaultValue={shop?.category ?? "general"}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         >
-          <option value="general">General store</option>
-          <option value="grocery">Grocery</option>
-          <option value="food">Food / Restaurant</option>
-          <option value="bakery">Bakery</option>
-          <option value="pharmacy">Pharmacy</option>
-          <option value="electronics">Electronics</option>
-          <option value="clothing">Clothing</option>
+          {SHOP_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
         </select>
       </div>
 
