@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PRODUCT_CATEGORIES } from "@/lib/categories";
 import AddToCartButton from "@/components/AddToCartButton";
+import WishlistButton from "@/components/WishlistButton";
 
 type SearchParams = {
   q?: string;
@@ -45,6 +46,19 @@ export default async function ProductsPage({
   else query = query.order("created_at", { ascending: false });
 
   const { data: products } = await query.limit(60);
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let wishlistedIds = new Set<string>();
+  if (user) {
+    const { data: w } = await supabase
+      .from("wishlist_items")
+      .select("product_id")
+      .eq("user_id", user.id);
+    wishlistedIds = new Set((w ?? []).map((x: any) => x.product_id));
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -166,7 +180,13 @@ export default async function ProductsPage({
                   </div>
                 </Link>
                 <div className="p-4 flex flex-col gap-1 flex-1">
-                  <span className="text-xs text-gray-500">{shop?.name}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs text-gray-500">{shop?.name}</span>
+                    <WishlistButton
+                      productId={p.id}
+                      initialWishlisted={wishlistedIds.has(p.id)}
+                    />
+                  </div>
                   <Link
                     href={`/products/${p.id}`}
                     className="font-semibold text-gray-900 hover:underline"
