@@ -17,7 +17,9 @@ create table if not exists profiles (
 );
 
 -- Auto-create a profile row whenever someone signs up.
--- Role + name come from the signup form via user metadata.
+-- Role + name come from the signup form via user metadata. If a shop was
+-- invited to this email address and the new account is a vendor, the shop
+-- auto-attaches to them.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -31,19 +33,31 @@ begin
     coalesce(new.raw_user_meta_data->>'full_name', ''),
     new.raw_user_meta_data->>'phone'
   );
+
+  if coalesce(new.raw_user_meta_data->>'role', 'customer') = 'vendor' then
+    update public.shops
+    set vendor_id = new.id, pending_vendor_email = null
+    where vendor_id is null
+      and pending_vendor_email is not null
+      and lower(pending_vendor_email) = lower(new.email);
+  end if;
+
   return new;
 end;
 $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+after insert on auth.users
+for each row execute procedure public.handle_new_user();
 
 -- ---------- SHOPS ----------
+-- vendor_id is nullable so an admin can create a shop before a vendor is
+-- attached to it (see pending_vendor_email for the invite-by-email flow).
 create table if not exists shops (
   id uuid primary key default gen_random_uuid(),
-  vendor_id uuid not null references profiles(id) on delete cascade,
+  vendor_id uuid references profiles(id) on delete cascade,
+  pending_vendor_email text,
   name text not null,
   description text,
   category text not null default 'general',
@@ -159,12 +173,14 @@ create policy "profiles_update_own" on profiles
   for update using (id = auth.uid());
 
 -- SHOPS: public can see approved+active shops; vendor manages own; admin manages all.
+-- Admins can also create a shop without a vendor yet, or insert directly for
+-- any vendor (not just their own).
 create policy "shops_public_read" on shops
   for select using (approved = true and active = true);
 create policy "shops_vendor_read_own" on shops
   for select using (vendor_id = auth.uid() or public.is_admin());
 create policy "shops_vendor_insert" on shops
-  for insert with check (vendor_id = auth.uid());
+  for insert with check (vendor_id = auth.uid() or public.is_admin());
 create policy "shops_vendor_update_own" on shops
   for update using (vendor_id = auth.uid() or public.is_admin());
 
@@ -279,6 +295,12 @@ create policy "rider_status_own" on rider_status
   for all using (rider_id = auth.uid());
 create policy "rider_status_read_all" on rider_status
   for select using (true);
+
+-- ===========================================================
+-- STORAGE: "products" bucket holds product photos (public read).
+-- Logged-in vendors/admins can upload, replace, or delete files in it.
+-- Created via the Supabase Storage UI + SQL editor (see project setup notes).
+-- ===========================================================
 
 -- ===========================================================
 -- Make the FIRST account you create an admin manually:
