@@ -12,9 +12,10 @@ type Product = {
   active: boolean;
   image_url: string | null;
   category: string;
+  generic_name: string | null;
 };
 
-const HEADERS = ["name", "description", "price", "stock_qty", "image_url", "category", "active"] as const;
+const HEADERS = ["name", "description", "price", "stock_qty", "image_url", "category", "generic_name", "active"] as const;
 
 function csvEscape(value: string): string {
   if (/[",\n]/.test(value)) {
@@ -33,6 +34,7 @@ function toCsv(products: Product[]): string {
       String(p.stock_qty),
       p.image_url ?? "",
       p.category ?? "",
+      p.generic_name ?? "",
       p.active ? "true" : "false",
     ].map((v) => csvEscape(String(v)));
     lines.push(row.join(","));
@@ -127,6 +129,7 @@ export default function ImportExportBar({ products }: { products: Product[] }) {
       const stockIdx = idx("stock_qty");
       const imageIdx = idx("image_url");
       const categoryIdx = idx("category");
+      const genericIdx = idx("generic_name");
       const activeIdx = idx("active");
 
       if (nameIdx === -1 || priceIdx === -1) {
@@ -141,6 +144,7 @@ export default function ImportExportBar({ products }: { products: Product[] }) {
         stock_qty: stockIdx !== -1 ? Number(cols[stockIdx] ?? 0) : 0,
         image_url: imageIdx !== -1 ? cols[imageIdx] ?? "" : "",
         category: categoryIdx !== -1 ? cols[categoryIdx] ?? "" : "",
+        generic_name: genericIdx !== -1 ? cols[genericIdx] ?? "" : "",
         active: activeIdx !== -1 ? cols[activeIdx]?.trim().toLowerCase() !== "false" : true,
       }));
 
