@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addProduct } from "./actions";
 import ProductRow from "./ProductRow";
 import ImportExportBar from "./ImportExportBar";
-import { PRODUCT_CATEGORIES, DEFAULT_PRODUCT_CATEGORY } from "@/lib/categories";
+import { getCategoriesForShopType, getDefaultCategoryForShopType } from "@/lib/categories";
 
 export default async function AdminShopProductsPage({
   params,
@@ -20,15 +20,18 @@ export default async function AdminShopProductsPage({
 
   const { data: shop } = await supabase
     .from("shops")
-    .select("id, name")
+    .select("id, name, category")
     .eq("id", shopId)
     .maybeSingle();
 
   if (!shop) notFound();
 
+  const categories = getCategoriesForShopType(shop.category);
+  const defaultCategory = getDefaultCategoryForShopType(shop.category);
+
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, description, price, stock_qty, active, image_url, category")
+    .select("id, name, description, price, stock_qty, active, image_url, category, generic_name")
     .eq("shop_id", shop.id)
     .order("created_at", { ascending: false });
 
@@ -45,7 +48,7 @@ export default async function AdminShopProductsPage({
 
       <ImportExportBar shopId={shop.id} products={products ?? []} />
 
-      <form action={addProductWithShop} className="grid gap-3 sm:grid-cols-6 mb-8 items-end">
+      <form action={addProductWithShop} className="grid gap-3 sm:grid-cols-7 mb-8 items-end">
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium mb-1">Name</label>
           <input name="name" required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
@@ -75,20 +78,28 @@ export default async function AdminShopProductsPage({
           <label className="block text-xs font-medium mb-1">Category</label>
           <select
             name="category"
-            defaultValue={DEFAULT_PRODUCT_CATEGORY}
+            defaultValue={defaultCategory}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           >
-            {PRODUCT_CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-xs font-medium mb-1">Generic Name</label>
+          <input
+            name="generic_name"
+            placeholder="e.g. Paracetamol"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
         <button className="rounded-lg bg-green-700 text-white px-4 py-2 text-sm font-semibold">
           Add product
         </button>
-        <div className="sm:col-span-6">
+        <div className="sm:col-span-7">
           <label className="block text-xs font-medium mb-1">Description</label>
           <input name="description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
         </div>
@@ -110,7 +121,7 @@ export default async function AdminShopProductsPage({
           </thead>
           <tbody>
             {products.map((p) => (
-              <ProductRow key={p.id} shopId={shop.id} product={p} />
+              <ProductRow key={p.id} shopId={shop.id} product={p} categories={categories} />
             ))}
           </tbody>
         </table>
