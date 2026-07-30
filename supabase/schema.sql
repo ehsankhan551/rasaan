@@ -307,3 +307,25 @@ create policy "rider_status_read_all" on rider_status
 -- update profiles set role = 'admin' where id = '<your-user-uuid>';
 -- (Find your uuid in Supabase Dashboard -> Authentication -> Users)
 -- ===========================================================
+
+
+-- ---------- REVIEWS ----------
+-- One review per (product, user). Star rating 1-5 with optional comment.
+create table if not exists reviews (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references products(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  rating smallint not null check (rating between 1 and 5),
+  comment text,
+  created_at timestamptz not null default now(),
+  unique (product_id, user_id)
+);
+
+alter table reviews enable row level security;
+
+create policy "reviews_select_all" on reviews for select using (true);
+create policy "reviews_insert_own" on reviews for insert to authenticated with check (auth.uid() = user_id);
+create policy "reviews_update_own" on reviews for update to authenticated using (auth.uid() = user_id);
+create policy "reviews_delete_own" on reviews for delete to authenticated using (auth.uid() = user_id);
+
+create index if not exists reviews_product_id_idx on reviews(product_id);
