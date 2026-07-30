@@ -45,6 +45,9 @@ export default async function SiteHeader() {
           <Link href="/shops" className="text-gray-600 hover:text-gray-900">
             Browse Shops
           </Link>
+          <Link href="/deals" className="text-red-600 font-semibold hover:text-red-700">
+            🔥 Deals
+          </Link>
           <Link href="/wishlist" className="text-gray-600 hover:text-gray-900">
             Wishlist
           </Link>
