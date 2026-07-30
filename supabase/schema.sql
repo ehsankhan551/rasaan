@@ -67,6 +67,7 @@ create table if not exists products (
   image_url text,
   stock_qty integer not null default 0,
   category text not null default 'Other',
+  generic_name text,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
