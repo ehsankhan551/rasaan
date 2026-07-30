@@ -4,6 +4,50 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { getDefaultCategoryForShopType } from "@/lib/categories";
 
+// If image_url points to an external site, download it and re-host it in our
+// own Supabase Storage bucket so it has a stable, permanent URL. If it's
+// already one of our own storage URLs (or the fetch fails), it's used as-is.
+async function mirrorImageToStorage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  shopId: string,
+  productName: string,
+  sourceUrl: string
+): Promise<string | null> {
+  const trimmed = sourceUrl.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes("/storage/v1/object/public/products/")) return trimmed;
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  try {
+    const res = await fetch(trimmed);
+    if (!res.ok) return trimmed;
+    const contentType = res.headers.get("content-type") || "image/jpeg";
+    if (!contentType.startsWith("image/")) return trimmed;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength === 0 || buf.byteLength > 5 * 1024 * 1024) return trimmed;
+
+    const extGuess = contentType.split("/")[1]?.split(";")[0] || "jpg";
+    const ext = ["jpeg", "jpg", "png", "webp", "gif"].includes(extGuess) ? extGuess : "jpg";
+    const slug = productName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 60);
+    const path = `${shopId}/${slug}-${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage.from("products").upload(path, buf, {
+      contentType,
+      upsert: true,
+    });
+    if (error) return trimmed;
+
+    const { data } = supabase.storage.from("products").getPublicUrl(path);
+    return data.publicUrl;
+  } catch {
+    return trimmed;
+  }
+}
+
 export async function addProduct(shopId: string, formData: FormData) {
   const supabase = await createClient();
 
@@ -15,8 +59,11 @@ export async function addProduct(shopId: string, formData: FormData) {
   const stockQty = Number(formData.get("stock_qty") || 0);
   const category = String(formData.get("category") || "").trim() || getDefaultCategoryForShopType(shop?.category);
   const genericName = String(formData.get("generic_name") || "").trim();
+  const imageUrlRaw = String(formData.get("image_url") || "").trim();
 
   if (!name || price < 0) return;
+
+  const imageUrl = imageUrlRaw ? await mirrorImageToStorage(supabase, shopId, name, imageUrlRaw) : null;
 
   await supabase.from("products").insert({
     shop_id: shopId,
@@ -26,6 +73,7 @@ export async function addProduct(shopId: string, formData: FormData) {
     stock_qty: stockQty,
     category,
     generic_name: genericName || null,
+    image_url: imageUrl,
   });
 
   revalidatePath(`/admin/vendors/${shopId}/products`);
@@ -68,11 +116,13 @@ export async function updateProduct(
   const description = data.description.trim();
   const price = Number(data.price);
   const stockQty = Number(data.stock_qty);
-  const imageUrl = data.image_url.trim();
+  const imageUrlRaw = data.image_url.trim();
   const category = data.category.trim() || "Other";
   const genericName = data.generic_name.trim();
 
   if (!name || !Number.isFinite(price) || price < 0) return;
+
+  const imageUrl = imageUrlRaw ? await mirrorImageToStorage(supabase, shopId, name, imageUrlRaw) : null;
 
   await supabase
     .from("products")
@@ -81,7 +131,7 @@ export async function updateProduct(
       description,
       price,
       stock_qty: Number.isFinite(stockQty) ? stockQty : 0,
-      image_url: imageUrl || null,
+      image_url: imageUrl,
       category,
       generic_name: genericName || null,
     })
@@ -126,12 +176,15 @@ export async function bulkUpsertProducts(shopId: string, rows: ImportRow[]) {
     }
 
     const stockQtyNum = Number(row.stock_qty);
+    const imageUrlRaw = row.image_url?.trim() || "";
+    const imageUrl = imageUrlRaw ? await mirrorImageToStorage(supabase, shopId, name, imageUrlRaw) : null;
+
     const payload = {
       name,
       description: row.description?.trim() || "",
       price,
       stock_qty: Number.isFinite(stockQtyNum) ? stockQtyNum : 0,
-      image_url: row.image_url?.trim() || null,
+      image_url: imageUrl,
       category: row.category?.trim() || getDefaultCategoryForShopType(shop?.category),
       generic_name: row.generic_name?.trim() || null,
       active: row.active !== false,
