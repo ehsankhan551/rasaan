@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
+import WishlistButton from "@/components/WishlistButton";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -28,7 +29,7 @@ export default async function ShopDetailPage({
 
   let productsQuery = supabase
     .from("products")
-    .select("id, name, description, price, stock_qty, image_url, category, generic_name")
+    .select("id, name, description, price, sale_price, stock_qty, image_url, category, generic_name")
     .eq("shop_id", shopId)
     .eq("active", true);
 
@@ -47,6 +48,19 @@ export default async function ShopDetailPage({
   const categories = Array.from(
     new Set((allProducts ?? []).map((p) => p.category).filter(Boolean))
   ).sort();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let wishlistedIds = new Set<string>();
+  if (user) {
+    const { data: w } = await supabase
+      .from("wishlist_items")
+      .select("product_id")
+      .eq("user_id", user.id);
+    wishlistedIds = new Set((w ?? []).map((row) => row.product_id));
+  }
 
   function buildHref(overrides: { category?: string | null; q?: string | null; letter?: string | null }) {
     const params = new URLSearchParams();
@@ -137,34 +151,67 @@ export default async function ShopDetailPage({
         <p className="text-gray-500">No products found.</p>
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {products?.map((p) => (
-          <div key={p.id} className="rounded-xl border border-gray-200 p-4 flex flex-col">
-            <Link href={`/products/${p.id}`} className="font-semibold hover:underline">
-              {p.name}
-            </Link>
-            {p.generic_name && (
-              <span className="text-xs text-gray-400">Generic: {p.generic_name}</span>
-            )}
-            <span className="text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 w-fit mt-1">
-              {p.category}
-            </span>
-            <p className="text-sm text-gray-600 flex-1 mt-1">{p.description}</p>
-            <div className="flex items-center justify-between mt-3">
-              <span className="font-semibold">Rs {p.price}</span>
-              {p.stock_qty > 0 ? (
-                <AddToCartButton
-                  productId={p.id}
-                  name={p.name}
-                  price={Number(p.price)}
-                  shopId={shopId}
-                  shopName={shop.name}
-                />
-              ) : (
-                <span className="text-xs text-red-500">Out of stock</span>
-              )}
+        {products?.map((p) => {
+          const hasDeal = p.sale_price && Number(p.sale_price) < Number(p.price);
+          const discountPct = hasDeal
+            ? Math.round((1 - Number(p.sale_price) / Number(p.price)) * 100)
+            : 0;
+          return (
+            <div key={p.id} className="rounded-xl border border-gray-200 overflow-hidden flex flex-col">
+              <Link href={`/products/${p.id}`} className="block relative">
+                <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                  {p.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-gray-400 text-sm">No image</span>
+                  )}
+                </div>
+                {hasDeal && (
+                  <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
+                    -{discountPct}%
+                  </span>
+                )}
+              </Link>
+              <div className="p-4 flex flex-col flex-1">
+                <Link href={`/products/${p.id}`} className="font-semibold hover:underline">
+                  {p.name}
+                </Link>
+                {p.generic_name && (
+                  <span className="text-xs text-gray-400">Generic: {p.generic_name}</span>
+                )}
+                <span className="text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 w-fit mt-1">
+                  {p.category}
+                </span>
+                <p className="text-sm text-gray-600 flex-1 mt-1">{p.description}</p>
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  {hasDeal ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-red-600">Rs {Number(p.sale_price).toFixed(0)}</span>
+                      <span className="text-xs text-gray-400 line-through">Rs {Number(p.price).toFixed(0)}</span>
+                    </div>
+                  ) : (
+                    <span className="font-semibold">Rs {p.price}</span>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <WishlistButton productId={p.id} initialWishlisted={wishlistedIds.has(p.id)} />
+                    {p.stock_qty > 0 ? (
+                      <AddToCartButton
+                        productId={p.id}
+                        name={p.name}
+                        price={Number(p.price)}
+                        shopId={shop.id}
+                        shopName={shop.name}
+                      />
+                    ) : (
+                      <span className="text-xs text-red-500">Out of stock</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </main>
   );
