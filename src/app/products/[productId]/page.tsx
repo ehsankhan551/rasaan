@@ -26,7 +26,7 @@ export default async function ProductDetailPage({
   const { data: product } = await supabase
     .from("products")
     .select(
-      "id, name, description, price, stock_qty, image_url, category, shop_id, shops!inner(id, name, address)"
+      "id, name, description, price, sale_price, stock_qty, image_url, category, shop_id, shops!inner(id, name, address)"
     )
     .eq("id", productId)
     .eq("active", true)
@@ -36,9 +36,14 @@ export default async function ProductDetailPage({
 
   const shop: any = Array.isArray(product.shops) ? product.shops[0] : product.shops;
 
+  const hasDeal = product.sale_price && Number(product.sale_price) < Number(product.price);
+  const discountPct = hasDeal
+    ? Math.round((1 - Number(product.sale_price) / Number(product.price)) * 100)
+    : 0;
+
   const { data: related } = await supabase
     .from("products")
-    .select("id, name, price, image_url, shop_id, shops!inner(name)")
+    .select("id, name, price, sale_price, image_url, shop_id, shops!inner(name)")
     .eq("category", product.category)
     .eq("active", true)
     .neq("id", product.id)
@@ -78,7 +83,7 @@ export default async function ProductDetailPage({
       </Link>
 
       <div className="mt-4 grid gap-8 sm:grid-cols-2">
-        <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center">
+        <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center relative">
           {product.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -88,6 +93,11 @@ export default async function ProductDetailPage({
             />
           ) : (
             <span className="text-gray-400">No image</span>
+          )}
+          {hasDeal && (
+            <span className="absolute top-3 left-3 text-xs font-bold bg-red-600 text-white rounded-full px-2.5 py-1">
+              -{discountPct}% OFF
+            </span>
           )}
         </div>
         <div>
@@ -110,35 +120,43 @@ export default async function ProductDetailPage({
             <p className="text-sm text-gray-400 mt-2">No reviews yet</p>
           )}
 
-          <p className="text-2xl font-bold text-gray-900 mt-4">
-            Rs {Number(product.price).toFixed(0)}
-          </p>
+          {hasDeal ? (
+            <div className="flex items-center gap-2 mt-4">
+              <p className="text-2xl font-bold text-red-600">
+                Rs {Number(product.sale_price).toFixed(0)}
+              </p>
+              <p className="text-base text-gray-400 line-through">
+                Rs {Number(product.price).toFixed(0)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-2xl font-bold text-gray-900 mt-4">
+              Rs {Number(product.price).toFixed(0)}
+            </p>
+          )}
           {product.description && (
             <p className="text-gray-600 mt-3 whitespace-pre-line">{product.description}</p>
           )}
-          <div className="mt-6">
-            {product.stock_qty > 0 ? (
-              <>
-                <p className="text-sm text-green-600 mb-2">
-                  In stock ({product.stock_qty} available)
-                </p>
-                <div className="flex items-center gap-2">
+          <div className="mt-6 flex items-center gap-3">
+            <div>
+              {product.stock_qty > 0 ? (
+                <>
+                  <p className="text-sm text-green-600 mb-2">
+                    In stock ({product.stock_qty} available)
+                  </p>
                   <AddToCartButton
                     productId={product.id}
                     name={product.name}
-                    price={Number(product.price)}
+                    price={Number(hasDeal ? product.sale_price : product.price)}
                     shopId={product.shop_id}
                     shopName={shop?.name ?? ""}
                   />
-                  <WishlistButton productId={product.id} initialWishlisted={wishlisted} />
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
+                </>
+              ) : (
                 <p className="text-sm text-red-500 font-medium">Out of stock</p>
-                <WishlistButton productId={product.id} initialWishlisted={wishlisted} />
-              </div>
-            )}
+              )}
+            </div>
+            <WishlistButton productId={product.id} initialWishlisted={wishlisted} />
           </div>
         </div>
       </div>
@@ -183,12 +201,13 @@ export default async function ProductDetailPage({
           <h2 className="text-lg font-semibold mb-4">Related Products</h2>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {related.map((p: any) => {
+              const relDeal = p.sale_price && Number(p.sale_price) < Number(p.price);
               const s = Array.isArray(p.shops) ? p.shops[0] : p.shops;
               return (
                 <Link
                   key={p.id}
                   href={`/products/${p.id}`}
-                  className="rounded-xl border border-gray-200 overflow-hidden block"
+                  className="rounded-xl border border-gray-200 overflow-hidden block relative"
                 >
                   <div className="aspect-square bg-gray-100 flex items-center justify-center">
                     {p.image_url ? (
@@ -198,12 +217,24 @@ export default async function ProductDetailPage({
                       <span className="text-gray-400 text-sm">No image</span>
                     )}
                   </div>
+                  {relDeal && (
+                    <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
+                      -{Math.round((1 - Number(p.sale_price) / Number(p.price)) * 100)}%
+                    </span>
+                  )}
                   <div className="p-3">
                     <p className="text-xs text-gray-500">{s?.name}</p>
                     <p className="font-medium text-sm text-gray-900">{p.name}</p>
-                    <p className="font-bold text-sm text-gray-900 mt-1">
-                      Rs {Number(p.price).toFixed(0)}
-                    </p>
+                    {relDeal ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="font-bold text-sm text-red-600">Rs {Number(p.sale_price).toFixed(0)}</span>
+                        <span className="text-xs text-gray-400 line-through">Rs {Number(p.price).toFixed(0)}</span>
+                      </div>
+                    ) : (
+                      <p className="font-bold text-sm text-gray-900 mt-1">
+                        Rs {Number(p.price).toFixed(0)}
+                      </p>
+                    )}
                   </div>
                 </Link>
               );
