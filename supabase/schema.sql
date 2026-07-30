@@ -329,3 +329,27 @@ create policy "reviews_update_own" on reviews for update to authenticated using 
 create policy "reviews_delete_own" on reviews for delete to authenticated using (auth.uid() = user_id);
 
 create index if not exists reviews_product_id_idx on reviews(product_id);
+
+
+-- ---------- WISHLIST ----------
+-- One row per (user, product) saved to wishlist.
+create table if not exists wishlist_items (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    product_id uuid not null references products(id) on delete cascade,
+    created_at timestamptz not null default now(),
+    unique (user_id, product_id)
+  );
+
+alter table wishlist_items enable row level security;
+
+create policy "wishlist_select_own" on wishlist_items for select to authenticated using (auth.uid() = user_id);
+create policy "wishlist_insert_own" on wishlist_items for insert to authenticated with check (auth.uid() = user_id);
+create policy "wishlist_delete_own" on wishlist_items for delete to authenticated using (auth.uid() = user_id);
+
+create index if not exists wishlist_items_user_id_idx on wishlist_items(user_id);
+
+-- ---------- DEALS ----------
+-- Optional discounted price. When set and lower than price, the product
+-- shows a "Deal" badge + strikethrough price across the app.
+alter table products add column if not exists sale_price numeric;
