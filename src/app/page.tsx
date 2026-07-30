@@ -28,6 +28,18 @@ export default async function Home() {
     .order("created_at", { ascending: false })
     .limit(8);
 
+  const { data: rawDeals } = await supabase
+    .from("products")
+    .select("id, name, price, sale_price, image_url, shop_id, shops!inner(name)")
+    .eq("active", true)
+    .not("sale_price", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(24);
+
+  const dealProducts = (rawDeals ?? [])
+    .filter((p: any) => p.sale_price && Number(p.sale_price) < Number(p.price))
+    .slice(0, 8);
+
   return (
     <main className="flex-1">
       <section className="bg-gradient-to-r from-green-800 to-green-600 text-white">
@@ -62,7 +74,51 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-12">
+      {dealProducts && dealProducts.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-12">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-red-600">🔥 Hot Deals</h2>
+            <Link href="/deals" className="text-sm text-green-700 font-medium hover:underline">
+              View all deals →
+            </Link>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {dealProducts.map((p: any) => {
+              const shop = Array.isArray(p.shops) ? p.shops[0] : p.shops;
+              const discountPct = Math.round((1 - Number(p.sale_price) / Number(p.price)) * 100);
+              return (
+                <Link
+                  key={p.id}
+                  href={`/products/${p.id}`}
+                  className="rounded-xl border border-gray-200 overflow-hidden block relative"
+                >
+                  <div className="aspect-square bg-gray-100 flex items-center justify-center">
+                    {p.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-gray-400 text-sm">No image</span>
+                    )}
+                  </div>
+                  <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
+                    -{discountPct}%
+                  </span>
+                  <div className="p-4">
+                    <span className="text-xs text-gray-500">{shop?.name}</span>
+                    <p className="font-semibold text-gray-900 mt-0.5">{p.name}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="font-bold text-red-600">Rs {Number(p.sale_price).toFixed(0)}</span>
+                      <span className="text-xs text-gray-400 line-through">Rs {Number(p.price).toFixed(0)}</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100">
         <h2 className="text-lg font-semibold mb-4">Shop by Category</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {PRODUCT_CATEGORIES.map((c) => (
