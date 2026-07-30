@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { toggleProduct, updateStock, deleteProduct, updateProduct } from "./actions";
-import { PRODUCT_CATEGORIES } from "@/lib/categories";
 
 type Product = {
   id: string;
@@ -13,9 +12,18 @@ type Product = {
   active: boolean;
   image_url: string | null;
   category: string;
+  generic_name: string | null;
 };
 
-export default function ProductRow({ shopId, product }: { shopId: string; product: Product }) {
+export default function ProductRow({
+  shopId,
+  product,
+  categories,
+}: {
+  shopId: string;
+  product: Product;
+  categories: readonly string[];
+}) {
   const [stock, setStock] = useState(product.stock_qty);
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
@@ -25,6 +33,7 @@ export default function ProductRow({ shopId, product }: { shopId: string; produc
   const [price, setPrice] = useState(product.price);
   const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
   const [category, setCategory] = useState(product.category);
+  const [genericName, setGenericName] = useState(product.generic_name ?? "");
 
   function cancelEdit() {
     setName(product.name);
@@ -32,6 +41,7 @@ export default function ProductRow({ shopId, product }: { shopId: string; produc
     setPrice(product.price);
     setImageUrl(product.image_url ?? "");
     setCategory(product.category);
+    setGenericName(product.generic_name ?? "");
     setEditing(false);
   }
 
@@ -44,6 +54,7 @@ export default function ProductRow({ shopId, product }: { shopId: string; produc
         stock_qty: stock,
         image_url: imageUrl,
         category,
+        generic_name: genericName,
       });
       setEditing(false);
     });
@@ -53,7 +64,7 @@ export default function ProductRow({ shopId, product }: { shopId: string; produc
     return (
       <tr className="border-t border-gray-100 bg-gray-50">
         <td className="py-3 pr-3" colSpan={6}>
-          <div className="grid gap-2 sm:grid-cols-6 items-end">
+          <div className="grid gap-2 sm:grid-cols-7 items-end">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium mb-1">Name</label>
               <input
@@ -90,12 +101,21 @@ export default function ProductRow({ shopId, product }: { shopId: string; produc
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               >
-                {PRODUCT_CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Generic Name</label>
+              <input
+                value={genericName}
+                onChange={(e) => setGenericName(e.target.value)}
+                placeholder="e.g. Paracetamol"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
             </div>
             <div className="flex gap-2">
               <button
@@ -121,7 +141,7 @@ export default function ProductRow({ shopId, product }: { shopId: string; produc
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-3">
               <label className="block text-xs font-medium mb-1">Image URL</label>
               <input
                 value={imageUrl}
@@ -141,6 +161,9 @@ export default function ProductRow({ shopId, product }: { shopId: string; produc
       <td className="py-2 pr-3">
         <p className="font-medium text-sm">{product.name}</p>
         <p className="text-xs text-gray-500">{product.description}</p>
+        {product.generic_name && (
+          <p className="text-xs text-gray-400">Generic: {product.generic_name}</p>
+        )}
       </td>
       <td className="py-2 pr-3">
         <span className="text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-1">{product.category}</span>
