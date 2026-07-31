@@ -9,6 +9,14 @@ async function getOwnShop(supabase: Awaited<ReturnType<typeof createClient>>, us
   return data ?? null;
 }
 
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 60);
+}
+
 // If image_url points to an external site, download it and re-host it in our
 // own Supabase Storage bucket so it has a stable, permanent URL. If it's
 // already one of our own storage URLs (or the fetch fails), it's used as-is.
@@ -33,12 +41,7 @@ async function mirrorImageToStorage(
 
     const extGuess = contentType.split("/")[1]?.split(";")[0] || "jpg";
     const ext = ["jpeg", "jpg", "png", "webp", "gif"].includes(extGuess) ? extGuess : "jpg";
-    const slug = productName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-      .slice(0, 60);
-    const path = `${shopId}/${slug}-${Date.now()}.${ext}`;
+    const path = `${shopId}/${slugify(productName)}-${Date.now()}.${ext}`;
 
     const { error } = await supabase.storage.from("products").upload(path, buf, {
       contentType,
@@ -51,6 +54,33 @@ async function mirrorImageToStorage(
   } catch {
     return trimmed;
   }
+}
+
+// Directly upload a file (from a vendor's <input type="file">) to Supabase
+// Storage and return its public URL, or null if the file is missing/invalid.
+async function uploadFileToStorage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  shopId: string,
+  productName: string,
+  file: File
+): Promise<string | null> {
+  if (!file || file.size === 0) return null;
+  if (file.size > 5 * 1024 * 1024) return null;
+  if (!file.type.startsWith("image/")) return null;
+
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const extGuess = file.type.split("/")[1]?.split(";")[0] || "jpg";
+  const ext = ["jpeg", "jpg", "png", "webp", "gif"].includes(extGuess) ? extGuess : "jpg";
+  const path = `${shopId}/${slugify(productName)}-${Date.now()}.${ext}`;
+
+  const { error } = await supabase.storage.from("products").upload(path, buf, {
+    contentType: file.type,
+    upsert: true,
+  });
+  if (error) return null;
+
+  const { data } = supabase.storage.from("products").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export async function addProduct(formData: FormData) {
@@ -70,10 +100,16 @@ export async function addProduct(formData: FormData) {
   const category = String(formData.get("category") || "").trim() || getDefaultCategoryForShopType(shop.category);
   const genericName = String(formData.get("generic_name") || "").trim();
   const imageUrlRaw = String(formData.get("image_url") || "").trim();
+  const imageFile = formData.get("image");
 
   if (!name || price < 0) return;
 
-  const imageUrl = imageUrlRaw ? await mirrorImageToStorage(supabase, shop.id, name, imageUrlRaw) : null;
+  let imageUrl: string | null = null;
+  if (imageFile instanceof File && imageFile.size > 0) {
+    imageUrl = await uploadFileToStorage(supabase, shop.id, name, imageFile);
+  } else if (imageUrlRaw) {
+    imageUrl = await mirrorImageToStorage(supabase, shop.id, name, imageUrlRaw);
+  }
 
   await supabase.from("products").insert({
     shop_id: shop.id,
@@ -105,6 +141,32 @@ export async function deleteProduct(productId: string) {
   const supabase = await createClient();
   await supabase.from("products").delete().eq("id", productId);
   revalidatePath("/vendor/products");
+}
+
+// Uploads a single product image file and returns its public storage URL.
+// Used by the vendor edit form (a controlled React form, not a plain
+// <form action> submit) so vendors can attach a photo from their device.
+export async function uploadProductImageFile(
+  formData: FormData
+): Promise<{ url: string } | { error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const shop = await getOwnShop(supabase, user.id);
+  if (!shop) return { error: "No shop found." };
+
+  const file = formData.get("image");
+  const name = String(formData.get("name") || "product");
+  if (!(file instanceof File) || file.size === 0) return { error: "No file provided." };
+  if (file.size > 5 * 1024 * 1024) return { error: "Image must be under 5MB." };
+  if (!file.type.startsWith("image/")) return { error: "File must be an image." };
+
+  const url = await uploadFileToStorage(supabase, shop.id, name, file);
+  if (!url) return { error: "Upload failed. Please try again." };
+  return { url };
 }
 
 export async function updateProduct(
