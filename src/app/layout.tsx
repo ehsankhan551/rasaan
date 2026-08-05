@@ -6,6 +6,9 @@ import { CartProvider } from "@/context/CartContext";
 export const metadata: Metadata = {
   title: "Rasaan",
   description: "Local marketplace for shops, customers, and delivery riders",
+  verification: {
+    google: "NwBqe5f5S-NjlwU9I7YH3zFLU5LWjHiQkiNzi-WbAjw",
+  },
 };
 
 export default function RootLayout({
