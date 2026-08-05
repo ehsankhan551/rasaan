@@ -3,6 +3,13 @@ import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/(auth)/login/actions";
 import CartLink from "@/components/CartLink";
 
+const DEPARTMENT_LINKS: { label: string; department: string }[] = [
+  { label: "Men", department: "Men" },
+  { label: "Women", department: "Women" },
+  { label: "Kids", department: "Kids" },
+  { label: "Baby", department: "Baby" },
+];
+
 export default async function SiteHeader() {
   const supabase = await createClient();
   const {
@@ -80,6 +87,19 @@ export default async function SiteHeader() {
             </>
           )}
         </nav>
+      </div>
+      <div className="border-t border-gray-100 bg-gray-50">
+        <div className="mx-auto max-w-6xl flex items-center gap-5 px-4 py-2 text-sm overflow-x-auto">
+          {DEPARTMENT_LINKS.map((d) => (
+            <Link
+              key={d.department}
+              href={`/products?department=${encodeURIComponent(d.department)}`}
+              className="font-medium text-gray-600 hover:text-green-700 whitespace-nowrap"
+            >
+              {d.label}
+            </Link>
+          ))}
+        </div>
       </div>
     </header>
   );
