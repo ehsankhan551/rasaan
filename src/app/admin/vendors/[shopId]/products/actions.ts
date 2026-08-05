@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { getDefaultCategoryForShopType } from "@/lib/categories";
+import { getDefaultCategoryForShopType, DEFAULT_DEPARTMENT } from "@/lib/categories";
 
 function slugify(name: string): string {
   return name
@@ -58,12 +58,17 @@ async function uploadFileToStorage(
   shopId: string,
   productName: string,
   file: File
-): Promise<string | null> {
-  if (!file || file.size === 0) return null;
-  if (file.size > 5 * 1024 * 1024) return null;
-  if (!file.type.startsWith("image/")) return null;
+): Promise<{ url: string } | { error: string }> {
+  if (!file || file.size === 0) return { error: "No file provided." };
+  if (file.size > 5 * 1024 * 1024) return { error: "Image must be under 5MB." };
+  if (!file.type.startsWith("image/")) return { error: "File must be an image." };
 
-  const buf = new Uint8Array(await file.arrayBuffer());
+  let buf: Uint8Array;
+  try {
+    buf = new Uint8Array(await file.arrayBuffer());
+  } catch (e) {
+    return { error: `Could not read file: ${e instanceof Error ? e.message : String(e)}` };
+  }
   const extGuess = file.type.split("/")[1]?.split(";")[0] || "jpg";
   const ext = ["jpeg", "jpg", "png", "webp", "gif"].includes(extGuess) ? extGuess : "jpg";
   const path = `${shopId}/${slugify(productName)}-${Date.now()}.${ext}`;
@@ -72,10 +77,10 @@ async function uploadFileToStorage(
     contentType: file.type,
     upsert: true,
   });
-  if (error) return null;
+  if (error) return { error: `Storage error: ${error.message}` };
 
   const { data } = supabase.storage.from("products").getPublicUrl(path);
-  return data.publicUrl;
+  return { url: data.publicUrl };
 }
 
 export async function addProduct(shopId: string, formData: FormData) {
@@ -88,6 +93,7 @@ export async function addProduct(shopId: string, formData: FormData) {
   const price = Number(formData.get("price") || 0);
   const stockQty = Number(formData.get("stock_qty") || 0);
   const category = String(formData.get("category") || "").trim() || getDefaultCategoryForShopType(shop?.category);
+  const department = String(formData.get("department") || "").trim() || DEFAULT_DEPARTMENT;
   const genericName = String(formData.get("generic_name") || "").trim();
   const imageUrlRaw = String(formData.get("image_url") || "").trim();
   const imageFile = formData.get("image");
@@ -96,7 +102,8 @@ export async function addProduct(shopId: string, formData: FormData) {
 
   let imageUrl: string | null = null;
   if (imageFile instanceof File && imageFile.size > 0) {
-    imageUrl = await uploadFileToStorage(supabase, shopId, name, imageFile);
+    const result = await uploadFileToStorage(supabase, shopId, name, imageFile);
+    imageUrl = "url" in result ? result.url : null;
   } else if (imageUrlRaw) {
     imageUrl = await mirrorImageToStorage(supabase, shopId, name, imageUrlRaw);
   }
@@ -108,6 +115,7 @@ export async function addProduct(shopId: string, formData: FormData) {
     price,
     stock_qty: stockQty,
     category,
+    department,
     generic_name: genericName || null,
     image_url: imageUrl,
   });
@@ -148,9 +156,7 @@ export async function uploadProductImageFile(
   if (file.size > 5 * 1024 * 1024) return { error: "Image must be under 5MB." };
   if (!file.type.startsWith("image/")) return { error: "File must be an image." };
 
-  const url = await uploadFileToStorage(supabase, shopId, name, file);
-  if (!url) return { error: "Upload failed. Please try again." };
-  return { url };
+  return uploadFileToStorage(supabase, shopId, name, file);
 }
 
 export async function updateProduct(
@@ -163,6 +169,7 @@ export async function updateProduct(
     stock_qty: number;
     image_url: string;
     category: string;
+    department: string;
     generic_name: string;
   }
 ) {
@@ -174,6 +181,7 @@ export async function updateProduct(
   const stockQty = Number(data.stock_qty);
   const imageUrlRaw = data.image_url.trim();
   const category = data.category.trim() || "Other";
+  const department = data.department.trim() || DEFAULT_DEPARTMENT;
   const genericName = data.generic_name.trim();
 
   if (!name || !Number.isFinite(price) || price < 0) return;
@@ -189,6 +197,7 @@ export async function updateProduct(
       stock_qty: Number.isFinite(stockQty) ? stockQty : 0,
       image_url: imageUrl,
       category,
+      department,
       generic_name: genericName || null,
     })
     .eq("id", productId);
