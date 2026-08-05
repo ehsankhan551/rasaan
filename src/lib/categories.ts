@@ -16,6 +16,16 @@ export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 
 export const DEFAULT_PRODUCT_CATEGORY: ProductCategory = "Other";
 
+// Global, cross-shop department field for Men/Women/Kids/Baby-style browsing
+// (Noon.com / Daraz-style top nav), independent of each shop's own category
+// list. Most non-apparel products (groceries, electronics, medicine, etc.)
+// are "Unisex" — that's the default for new products.
+export const DEPARTMENTS = ["Men", "Women", "Kids", "Baby", "Unisex"] as const;
+
+export type Department = (typeof DEPARTMENTS)[number];
+
+export const DEFAULT_DEPARTMENT: Department = "Unisex";
+
 // The shop types a vendor/admin can choose when creating a shop. New store
 // categories can be added here at any time as the marketplace grows.
 export const SHOP_TYPES = [
