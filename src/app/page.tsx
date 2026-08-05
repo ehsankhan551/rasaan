@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PRODUCT_CATEGORIES } from "@/lib/categories";
+import { PRODUCT_CATEGORIES, DEPARTMENTS } from "@/lib/categories";
 import AddToCartButton from "@/components/AddToCartButton";
 import NearbyShops from "@/components/NearbyShops";
 
@@ -16,6 +16,14 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Books & Stationery": "📚",
   "Mobile Accessories": "📱",
   "Other": "🛍️",
+};
+
+const DEPARTMENT_ICONS: Record<string, string> = {
+  Men: "👔",
+  Women: "👗",
+  Kids: "🧒",
+  Baby: "🍼",
+  Unisex: "🛍️",
 };
 
 export default async function Home() {
@@ -117,6 +125,22 @@ export default async function Home() {
           </div>
         </section>
       )}
+
+      <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100">
+        <h2 className="text-lg font-semibold mb-4">Shop by Department</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {DEPARTMENTS.filter((d) => d !== "Unisex").map((d) => (
+            <Link
+              key={d}
+              href={`/products?department=${encodeURIComponent(d)}`}
+              className="rounded-xl border border-gray-200 p-5 text-center hover:border-green-400 hover:bg-green-50"
+            >
+              <span className="text-3xl">{DEPARTMENT_ICONS[d] ?? "🛍️"}</span>
+              <p className="text-sm font-semibold text-gray-700 mt-2">{d}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100">
         <h2 className="text-lg font-semibold mb-4">Shop by Category</h2>
