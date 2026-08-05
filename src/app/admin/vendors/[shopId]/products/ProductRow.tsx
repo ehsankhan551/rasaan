@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { toggleProduct, updateStock, deleteProduct, updateProduct } from "./actions";
+import { useRef, useState, useTransition } from "react";
+import { toggleProduct, updateStock, deleteProduct, updateProduct, uploadProductImageFile } from "./actions";
 
 type Product = {
   id: string;
@@ -27,6 +27,8 @@ export default function ProductRow({
   const [stock, setStock] = useState(product.stock_qty);
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? "");
@@ -43,6 +45,29 @@ export default function ProductRow({
     setCategory(product.category);
     setGenericName(product.generic_name ?? "");
     setEditing(false);
+  }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.set("image", file);
+    fd.set("name", name || product.name);
+    startTransition(async () => {
+      const result = await uploadProductImageFile(shopId, fd);
+      if ("url" in result) {
+        setImageUrl(result.url);
+      } else {
+        alert(result.error);
+      }
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    });
+  }
+
+  function removeImage() {
+    setImageUrl("");
   }
 
   function saveEdit() {
@@ -63,7 +88,7 @@ export default function ProductRow({
   if (editing) {
     return (
       <tr className="border-t border-gray-100 bg-gray-50">
-        <td className="py-3 pr-3" colSpan={6}>
+        <td className="py-3 pr-3" colSpan={7}>
           <div className="grid gap-2 sm:grid-cols-7 items-end">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium mb-1">Name</label>
@@ -99,7 +124,7 @@ export default function ProductRow({
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>
@@ -142,13 +167,30 @@ export default function ProductRow({
               />
             </div>
             <div className="sm:col-span-3">
-              <label className="block text-xs font-medium mb-1">Image URL</label>
-              <input
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
+              <label className="block text-xs font-medium mb-1">Photo</label>
+              <div className="flex items-center gap-2">
+                {imageUrl ? (
+                  <img src={imageUrl} alt={name} className="h-10 w-10 rounded object-cover border border-gray-200" />
+                ) : (
+                  <div className="h-10 w-10 rounded border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-400">
+                    None
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  disabled={uploading}
+                  className="flex-1 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-green-700 file:text-white file:px-2 file:py-1 file:text-xs"
+                />
+                {imageUrl && (
+                  <button type="button" onClick={removeImage} className="text-xs text-red-500 whitespace-nowrap">
+                    Remove
+                  </button>
+                )}
+              </div>
+              {uploading && <p className="text-[10px] text-gray-400 mt-1">Uploading...</p>}
             </div>
           </div>
         </td>
@@ -158,6 +200,19 @@ export default function ProductRow({
 
   return (
     <tr className="border-t border-gray-100">
+      <td className="py-2 pr-3">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="h-10 w-10 rounded object-cover border border-gray-200"
+          />
+        ) : (
+          <div className="h-10 w-10 rounded border border-dashed border-gray-300 flex items-center justify-center text-[10px] text-gray-400">
+            None
+          </div>
+        )}
+      </td>
       <td className="py-2 pr-3">
         <p className="font-medium text-sm">{product.name}</p>
         <p className="text-xs text-gray-500">{product.description}</p>
