@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { addProduct } from "./actions";
 import ProductRow from "./ProductRow";
 import ImportExportBar from "./ImportExportBar";
-import { getCategoriesForShopType, getDefaultCategoryForShopType } from "@/lib/categories";
+import PhotoDropInput from "@/components/PhotoDropInput";
+import { getCategoriesForShopType, getDefaultCategoryForShopType, DEPARTMENTS, DEFAULT_DEPARTMENT } from "@/lib/categories";
 
 export default async function AdminShopProductsPage({
   params,
@@ -31,7 +32,7 @@ export default async function AdminShopProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, description, price, stock_qty, active, image_url, category, generic_name")
+    .select("id, name, description, price, stock_qty, active, image_url, category, department, generic_name")
     .eq("shop_id", shop.id)
     .order("created_at", { ascending: false });
 
@@ -50,7 +51,7 @@ export default async function AdminShopProductsPage({
 
       <form
         action={addProductWithShop}
-        className="grid gap-3 sm:grid-cols-8 mb-8 items-end bg-gray-50 border border-gray-200 rounded-xl p-4"
+        className="grid gap-3 sm:grid-cols-9 mb-8 items-end bg-gray-50 border border-gray-200 rounded-xl p-4"
       >
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium mb-1">Name</label>
@@ -92,6 +93,20 @@ export default async function AdminShopProductsPage({
           </select>
         </div>
         <div>
+          <label className="block text-xs font-medium mb-1">Department</label>
+          <select
+            name="department"
+            defaultValue={DEFAULT_DEPARTMENT}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+          >
+            {DEPARTMENTS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label className="block text-xs font-medium mb-1">Generic Name</label>
           <input
             name="generic_name"
@@ -99,19 +114,11 @@ export default async function AdminShopProductsPage({
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
-        <div>
-          <label className="block text-xs font-medium mb-1">Photo</label>
-          <input
-            name="image"
-            type="file"
-            accept="image/*"
-            className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-green-700 file:text-white file:px-2 file:py-1 file:text-xs"
-          />
-        </div>
+        <PhotoDropInput />
         <button className="rounded-lg bg-green-700 text-white px-4 py-2 text-sm font-semibold h-[38px]">
           Add product
         </button>
-        <div className="sm:col-span-8">
+        <div className="sm:col-span-9">
           <label className="block text-xs font-medium mb-1">Description</label>
           <input name="description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
         </div>
@@ -126,6 +133,7 @@ export default async function AdminShopProductsPage({
               <th className="pb-2 font-medium">Photo</th>
               <th className="pb-2 font-medium">Product</th>
               <th className="pb-2 font-medium">Category</th>
+              <th className="pb-2 font-medium">Dept</th>
               <th className="pb-2 font-medium">Price</th>
               <th className="pb-2 font-medium">Stock</th>
               <th className="pb-2 font-medium">Status</th>
