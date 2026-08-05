@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PRODUCT_CATEGORIES } from "@/lib/categories";
+import { PRODUCT_CATEGORIES, DEPARTMENTS } from "@/lib/categories";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 
 type SearchParams = {
   q?: string;
   category?: string;
+  department?: string;
   minPrice?: string;
   maxPrice?: string;
   inStock?: string;
@@ -21,6 +22,7 @@ export default async function ProductsPage({
   const sp = await searchParams;
   const q = (sp.q || "").trim();
   const category = sp.category || "";
+  const department = sp.department || "";
   const minPrice = sp.minPrice ? Number(sp.minPrice) : null;
   const maxPrice = sp.maxPrice ? Number(sp.maxPrice) : null;
   const inStock = sp.inStock === "1";
@@ -31,12 +33,13 @@ export default async function ProductsPage({
   let query = supabase
     .from("products")
     .select(
-      "id, name, description, price, sale_price, stock_qty, image_url, category, shop_id, shops!inner(id, name)"
+      "id, name, description, price, sale_price, stock_qty, image_url, category, department, shop_id, shops!inner(id, name)"
     )
     .eq("active", true);
 
   if (q) query = query.ilike("name", `%${q}%`);
   if (category) query = query.eq("category", category);
+  if (department) query = query.eq("department", department);
   if (minPrice !== null && !Number.isNaN(minPrice)) query = query.gte("price", minPrice);
   if (maxPrice !== null && !Number.isNaN(maxPrice)) query = query.lte("price", maxPrice);
   if (inStock) query = query.gt("stock_qty", 0);
@@ -60,13 +63,52 @@ export default async function ProductsPage({
     wishlistedIds = new Set((w ?? []).map((x: any) => x.product_id));
   }
 
+  function deptHref(d: string | null) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (category) params.set("category", category);
+    if (d) params.set("department", d);
+    if (sp.minPrice) params.set("minPrice", sp.minPrice);
+    if (sp.maxPrice) params.set("maxPrice", sp.maxPrice);
+    if (inStock) params.set("inStock", "1");
+    if (sort !== "newest") params.set("sort", sort);
+    const qs = params.toString();
+    return `/products${qs ? `?${qs}` : ""}`;
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Browse Products</h1>
+      <h1 className="text-2xl font-bold mb-4">Browse Products</h1>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Link
+          href={deptHref(null)}
+          className={`text-xs rounded-full px-3 py-1.5 border ${
+            !department
+              ? "bg-gray-900 text-white border-gray-900"
+              : "border-gray-300 text-gray-600"
+          }`}
+        >
+          All
+        </Link>
+        {DEPARTMENTS.filter((d) => d !== "Unisex").map((d) => (
+          <Link
+            key={d}
+            href={deptHref(d)}
+            className={`text-xs rounded-full px-3 py-1.5 border ${
+              department === d
+                ? "bg-gray-900 text-white border-gray-900"
+                : "border-gray-300 text-gray-600"
+            }`}
+          >
+            {d}
+          </Link>
+        ))}
+      </div>
 
       <form
         method="get"
-        className="mb-8 grid gap-3 sm:grid-cols-6 items-end bg-gray-50 border border-gray-200 rounded-xl p-4"
+        className="mb-8 grid gap-3 sm:grid-cols-7 items-end bg-gray-50 border border-gray-200 rounded-xl p-4"
       >
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1">Search</label>
@@ -77,6 +119,21 @@ export default async function ProductsPage({
             placeholder="Search products..."
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
+          <select
+            name="department"
+            defaultValue={department}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">All Departments</option>
+            {DEPARTMENTS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
@@ -138,7 +195,7 @@ export default async function ProductsPage({
             In stock only
           </label>
         </div>
-        <div className="sm:col-span-6 flex gap-2">
+        <div className="sm:col-span-7 flex gap-2">
           <button
             type="submit"
             className="rounded-lg bg-gray-900 text-white px-4 py-2 text-sm font-semibold"
