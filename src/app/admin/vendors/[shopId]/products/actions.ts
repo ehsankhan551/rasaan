@@ -156,7 +156,18 @@ export async function uploadProductImageFile(
   if (file.size > 5 * 1024 * 1024) return { error: "Image must be under 5MB." };
   if (!file.type.startsWith("image/")) return { error: "File must be an image." };
 
-  return uploadFileToStorage(supabase, shopId, name, file);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  const result = await uploadFileToStorage(supabase, shopId, name, file);
+  if ("error" in result) {
+    return {
+      error: `${result.error} [debug: uid=${user?.id ?? "null"} authErr=${authError?.message ?? "none"} shopId=${shopId}]`,
+    };
+  }
+  return result;
 }
 
 export async function updateProduct(
