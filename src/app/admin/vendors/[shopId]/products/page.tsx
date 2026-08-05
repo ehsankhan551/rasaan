@@ -48,7 +48,10 @@ export default async function AdminShopProductsPage({
 
       <ImportExportBar shopId={shop.id} products={products ?? []} />
 
-      <form action={addProductWithShop} className="grid gap-3 sm:grid-cols-7 mb-8 items-end">
+      <form
+        action={addProductWithShop}
+        className="grid gap-3 sm:grid-cols-8 mb-8 items-end bg-gray-50 border border-gray-200 rounded-xl p-4"
+      >
         <div className="sm:col-span-2">
           <label className="block text-xs font-medium mb-1">Name</label>
           <input name="name" required className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
@@ -79,7 +82,7 @@ export default async function AdminShopProductsPage({
           <select
             name="category"
             defaultValue={defaultCategory}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -96,10 +99,19 @@ export default async function AdminShopProductsPage({
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
-        <button className="rounded-lg bg-green-700 text-white px-4 py-2 text-sm font-semibold">
+        <div>
+          <label className="block text-xs font-medium mb-1">Photo</label>
+          <input
+            name="image"
+            type="file"
+            accept="image/*"
+            className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-xs file:mr-2 file:rounded-md file:border-0 file:bg-green-700 file:text-white file:px-2 file:py-1 file:text-xs"
+          />
+        </div>
+        <button className="rounded-lg bg-green-700 text-white px-4 py-2 text-sm font-semibold h-[38px]">
           Add product
         </button>
-        <div className="sm:col-span-7">
+        <div className="sm:col-span-8">
           <label className="block text-xs font-medium mb-1">Description</label>
           <input name="description" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
         </div>
@@ -111,6 +123,7 @@ export default async function AdminShopProductsPage({
         <table className="w-full text-left">
           <thead>
             <tr className="text-xs text-gray-500">
+              <th className="pb-2 font-medium">Photo</th>
               <th className="pb-2 font-medium">Product</th>
               <th className="pb-2 font-medium">Category</th>
               <th className="pb-2 font-medium">Price</th>
