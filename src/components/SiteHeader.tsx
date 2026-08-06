@@ -46,12 +46,6 @@ export default async function SiteHeader() {
           </button>
         </form>
         <nav className="flex items-center gap-4 text-sm shrink-0">
-          <Link href="/products" className="text-gray-600 hover:text-gray-900">
-            Browse Products
-          </Link>
-          <Link href="/shops" className="text-gray-600 hover:text-gray-900">
-            Browse Shops
-          </Link>
           <Link href="/deals" className="text-red-600 font-semibold hover:text-red-700">
             🔥 Deals
           </Link>
