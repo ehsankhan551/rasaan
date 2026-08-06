@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 import ReviewForm from "./ReviewForm";
+import ProductImage from "@/components/ProductImage";
 
 function Stars({ value, size = "text-sm" }: { value: number; size?: string }) {
   const rounded = Math.round(value);
@@ -84,16 +85,7 @@ export default async function ProductDetailPage({
 
       <div className="mt-4 grid gap-8 sm:grid-cols-2">
         <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-          {product.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={product.image_url}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <span className="text-gray-400">No image</span>
-          )}
+          <ProductImage src={product.image_url} category={product.category} name={product.name} />
           {hasDeal && (
             <span className="absolute top-3 left-3 text-xs font-bold bg-red-600 text-white rounded-full px-2.5 py-1">
               -{discountPct}% OFF
@@ -210,12 +202,7 @@ export default async function ProductDetailPage({
                   className="rounded-xl border border-gray-200 overflow-hidden block relative"
                 >
                   <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                    {p.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-gray-400 text-sm">No image</span>
-                    )}
+                    <ProductImage src={p.image_url} category={p.category} name={p.name} />
                   </div>
                   {relDeal && (
                     <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
