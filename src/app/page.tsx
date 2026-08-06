@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PRODUCT_CATEGORIES, DEPARTMENTS } from "@/lib/categories";
 import AddToCartButton from "@/components/AddToCartButton";
 import NearbyShops from "@/components/NearbyShops";
+import ProductImage from "@/components/ProductImage";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Groceries": "🛒",
@@ -101,12 +102,7 @@ export default async function Home() {
                   className="rounded-xl border border-gray-200 overflow-hidden block relative"
                 >
                   <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                    {p.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-gray-400 text-sm">No image</span>
-                    )}
+                    <ProductImage src={p.image_url} category={p.category} name={p.name} />
                   </div>
                   <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
                     -{discountPct}%
@@ -181,16 +177,7 @@ export default async function Home() {
                 >
                   <Link href={`/products/${p.id}`} className="block">
                     <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                      {p.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={p.image_url}
-                          alt={p.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-gray-400 text-sm">No image</span>
-                      )}
+                      <ProductImage src={p.image_url} category={p.category} name={p.name} />
                     </div>
                   </Link>
                   <div className="p-4 flex flex-col gap-1 flex-1">
