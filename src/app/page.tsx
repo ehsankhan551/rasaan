@@ -27,55 +27,104 @@ const DEPARTMENT_ICONS: Record<string, string> = {
   Unisex: "🛍️",
 };
 
+const FEATURES = [
+  { icon: "🚚", title: "Fast local delivery", desc: "Riders pick up from nearby shops" },
+  { icon: "💵", title: "Cash on delivery", desc: "Or pay online — your choice" },
+  { icon: "🏪", title: "Verified local shops", desc: "Real vendors from your area" },
+  { icon: "↩️", title: "Easy support", desc: "Help with orders, anytime" },
+];
+
+type RawProduct = {
+  id: string;
+  name: string;
+  price: number;
+  sale_price?: number | null;
+  image_url: string | null;
+  category: string | null;
+  shop_id: string;
+  shops: { name: string } | { name: string }[];
+};
+
+function getShop(p: RawProduct) {
+  return Array.isArray(p.shops) ? p.shops[0] : p.shops;
+}
+
+// Spread results across as many distinct shops as possible so Hot Deals
+// isn't dominated by whichever single shop happens to have the most
+// discounted items.
+function diversifyByShop<T extends { shop_id: string }>(items: T[], limit: number): T[] {
+  const byShop = new Map<string, T[]>();
+  for (const item of items) {
+    const list = byShop.get(item.shop_id) ?? [];
+    list.push(item);
+    byShop.set(item.shop_id, list);
+  }
+  const shopGroups = Array.from(byShop.values());
+  const result: T[] = [];
+  let round = 0;
+  while (result.length < limit && shopGroups.some((g) => g.length > round)) {
+    for (const group of shopGroups) {
+      if (group.length > round) result.push(group[round]);
+      if (result.length >= limit) break;
+    }
+    round++;
+  }
+  return result;
+}
+
 export default async function Home() {
   const supabase = await createClient();
 
-  const { data: hotProducts } = await supabase
+  const { data: hotProductsRaw } = await supabase
     .from("products")
     .select("id, name, price, image_url, category, shop_id, shops!inner(name)")
     .eq("active", true)
     .order("created_at", { ascending: false })
-    .limit(8);
+    .limit(60);
 
   const { data: rawDeals } = await supabase
     .from("products")
-    .select("id, name, price, sale_price, image_url, shop_id, shops!inner(name)")
+    .select("id, name, price, sale_price, image_url, category, shop_id, shops!inner(name)")
     .eq("active", true)
     .not("sale_price", "is", null)
     .order("created_at", { ascending: false })
-    .limit(24);
+    .limit(80);
 
-  const dealProducts = (rawDeals ?? [])
-    .filter((p: any) => p.sale_price && Number(p.sale_price) < Number(p.price))
-    .slice(0, 8);
+  const dealCandidates = ((rawDeals ?? []) as unknown as RawProduct[]).filter(
+    (p) => p.sale_price && Number(p.sale_price) < Number(p.price)
+  );
+  const dealProducts = diversifyByShop(dealCandidates, 8);
+  const hotProducts = diversifyByShop((hotProductsRaw ?? []) as unknown as RawProduct[], 8);
 
   return (
-    <main className="flex-1">
-      <section className="bg-gradient-to-r from-green-800 to-green-600 text-white">
-        <div className="mx-auto max-w-6xl px-4 py-14 text-center">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-3">
+    <div>
+      <section className="relative overflow-hidden bg-gradient-to-br from-green-800 via-green-700 to-emerald-600 text-white">
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-black/10 blur-3xl" />
+        <div className="relative mx-auto max-w-6xl px-4 py-16 text-center">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-4 leading-tight">
             Everything your neighborhood shops sell — delivered to your door
           </h1>
-          <p className="text-green-100 max-w-xl mx-auto mb-6">
+          <p className="text-green-50/90 max-w-xl mx-auto mb-8 text-base sm:text-lg">
             Groceries, cosmetics, medicine, electronics and more from local shops near you. Cash
             on delivery or pay online.
           </p>
           <div className="flex justify-center gap-3 flex-wrap">
             <Link
               href="/products"
-              className="rounded-lg bg-white text-green-800 font-semibold px-5 py-2.5"
+              className="rounded-xl bg-white text-green-800 font-semibold px-6 py-3 shadow-lg shadow-black/10 hover:bg-green-50 transition-colors"
             >
               Shop All Products
             </Link>
             <Link
               href="/shops"
-              className="rounded-lg border border-white/60 text-white font-semibold px-5 py-2.5"
+              className="rounded-xl border border-white/50 bg-white/5 text-white font-semibold px-6 py-3 backdrop-blur hover:bg-white/15 transition-colors"
             >
               Browse Shops
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg border border-white/60 text-white font-semibold px-5 py-2.5"
+              className="rounded-xl border border-white/50 bg-white/5 text-white font-semibold px-6 py-3 backdrop-blur hover:bg-white/15 transition-colors"
             >
               Become a Vendor
             </Link>
@@ -83,33 +132,54 @@ export default async function Home() {
         </div>
       </section>
 
-      {dealProducts && dealProducts.length > 0 && (
+      <section className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {FEATURES.map((f) => (
+            <div key={f.title} className="flex items-start gap-3">
+              <span className="text-2xl leading-none">{f.icon}</span>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{f.title}</p>
+                <p className="text-xs text-gray-500">{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {dealProducts.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-12">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-red-600">🔥 Hot Deals</h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="text-red-600">🔥 Hot Deals</span>
+            </h2>
             <Link href="/deals" className="text-sm text-green-700 font-medium hover:underline">
               View all deals →
             </Link>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {dealProducts.map((p: any) => {
-              const shop = Array.isArray(p.shops) ? p.shops[0] : p.shops;
+            {dealProducts.map((p) => {
+              const shop = getShop(p);
               const discountPct = Math.round((1 - Number(p.sale_price) / Number(p.price)) * 100);
               return (
                 <Link
                   key={p.id}
                   href={`/products/${p.id}`}
-                  className="rounded-xl border border-gray-200 overflow-hidden block relative"
+                  className="group rounded-2xl border border-gray-200 overflow-hidden block relative bg-white shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                    <ProductImage src={p.image_url} category={p.category} name={p.name} />
+                  <div className="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <ProductImage
+                      src={p.image_url}
+                      category={p.category}
+                      name={p.name}
+                      imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
-                  <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
+                  <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5 shadow">
                     -{discountPct}%
                   </span>
                   <div className="p-4">
                     <span className="text-xs text-gray-500">{shop?.name}</span>
-                    <p className="font-semibold text-gray-900 mt-0.5">{p.name}</p>
+                    <p className="font-semibold text-gray-900 mt-0.5 line-clamp-1">{p.name}</p>
                     <div className="flex items-center gap-1.5 mt-1">
                       <span className="font-bold text-red-600">Rs {Number(p.sale_price).toFixed(0)}</span>
                       <span className="text-xs text-gray-400 line-through">Rs {Number(p.price).toFixed(0)}</span>
@@ -123,68 +193,77 @@ export default async function Home() {
       )}
 
       <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100">
-        <h2 className="text-lg font-semibold mb-4">Shop by Department</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-5">Shop by Department</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {DEPARTMENTS.filter((d) => d !== "Unisex").map((d) => (
             <Link
               key={d}
               href={`/products?department=${encodeURIComponent(d)}`}
-              className="rounded-xl border border-gray-200 p-5 text-center hover:border-green-400 hover:bg-green-50"
+              className="group rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm hover:shadow-lg hover:border-green-300 hover:-translate-y-0.5 transition-all duration-200"
             >
-              <span className="text-3xl">{DEPARTMENT_ICONS[d] ?? "🛍️"}</span>
-              <p className="text-sm font-semibold text-gray-700 mt-2">{d}</p>
+              <span className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-50 text-3xl group-hover:bg-green-100 transition-colors">
+                {DEPARTMENT_ICONS[d] ?? "🛍️"}
+              </span>
+              <p className="text-sm font-semibold text-gray-700 mt-3">{d}</p>
             </Link>
           ))}
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100">
-        <h2 className="text-lg font-semibold mb-4">Shop by Category</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-5">Shop by Category</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {PRODUCT_CATEGORIES.map((c) => (
             <Link
               key={c}
               href={`/products?category=${encodeURIComponent(c)}`}
-              className="rounded-xl border border-gray-200 p-4 text-center hover:border-green-400 hover:bg-green-50"
+              className="group rounded-2xl border border-gray-200 bg-white p-5 text-center shadow-sm hover:shadow-lg hover:border-green-300 hover:-translate-y-0.5 transition-all duration-200"
             >
-              <span className="text-2xl">{CATEGORY_ICONS[c] ?? "🛍️"}</span>
-              <p className="text-xs font-medium text-gray-700 mt-2">{c}</p>
+              <span className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-green-50 text-2xl group-hover:bg-green-100 transition-colors">
+                {CATEGORY_ICONS[c] ?? "🛍️"}
+              </span>
+              <p className="text-xs font-medium text-gray-700 mt-2.5">{c}</p>
             </Link>
           ))}
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100">
-        <h2 className="text-lg font-semibold mb-4">Shops Near You</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-5">Shops Near You</h2>
         <NearbyShops />
       </section>
 
-      {hotProducts && hotProducts.length > 0 && (
+      {hotProducts.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">New &amp; Trending</h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-xl font-bold text-gray-900">New &amp; Trending</h2>
             <Link href="/products" className="text-sm text-green-700 font-medium hover:underline">
               View all →
             </Link>
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {hotProducts.map((p: any) => {
-              const shop = Array.isArray(p.shops) ? p.shops[0] : p.shops;
+            {hotProducts.map((p) => {
+              const shop = getShop(p);
               return (
                 <div
                   key={p.id}
-                  className="rounded-xl border border-gray-200 overflow-hidden flex flex-col"
+                  className="group rounded-2xl border border-gray-200 bg-white overflow-hidden flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-200"
                 >
                   <Link href={`/products/${p.id}`} className="block">
-                    <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                      <ProductImage src={p.image_url} category={p.category} name={p.name} />
+                    <div className="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
+                      <ProductImage
+                        src={p.image_url}
+                        category={p.category}
+                        name={p.name}
+                        imgClassName="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
                   </Link>
                   <div className="p-4 flex flex-col gap-1 flex-1">
                     <span className="text-xs text-gray-500">{shop?.name}</span>
                     <Link
                       href={`/products/${p.id}`}
-                      className="font-semibold text-gray-900 hover:underline"
+                      className="font-semibold text-gray-900 hover:underline line-clamp-1"
                     >
                       {p.name}
                     </Link>
@@ -209,26 +288,26 @@ export default async function Home() {
       )}
 
       <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100 grid gap-6 sm:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold mb-1">For Customers</h3>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="font-semibold mb-1.5">For Customers</h3>
           <p className="text-sm text-gray-600">
             Browse shops, order what you need, and pay by cash on delivery or online.
           </p>
         </div>
-        <div className="rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold mb-1">For Vendors</h3>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="font-semibold mb-1.5">For Vendors</h3>
           <p className="text-sm text-gray-600">
             List your products, manage orders, and choose your own delivery or use platform
             riders.
           </p>
         </div>
-        <div className="rounded-xl border border-gray-200 p-5">
-          <h3 className="font-semibold mb-1">For Riders</h3>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="font-semibold mb-1.5">For Riders</h3>
           <p className="text-sm text-gray-600">
             Pick up available deliveries nearby and earn on your own schedule.
           </p>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
