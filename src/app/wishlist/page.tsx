@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
+import ProductImage from "@/components/ProductImage";
 
 export default async function WishlistPage() {
   const supabase = await createClient();
@@ -42,16 +43,7 @@ export default async function WishlistPage() {
               >
                 <Link href={`/products/${p.id}`} className="block">
                   <div className="aspect-square bg-gray-100 flex items-center justify-center">
-                    {p.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.image_url}
-                        alt={p.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-gray-400 text-sm">No image</span>
-                    )}
+                    <ProductImage src={p.image_url} category={p.category} name={p.name} />
                   </div>
                 </Link>
                 <div className="p-4 flex flex-col gap-1 flex-1">
