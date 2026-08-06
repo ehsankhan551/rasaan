@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
+import ProductImage from "@/components/ProductImage";
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -302,12 +303,7 @@ export default async function ShopDetailPage({
             >
               <Link href={`/products/${p.id}`} className="block relative">
                 <div className="aspect-square bg-gray-50 flex items-center justify-center">
-                  {p.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-gray-400 text-sm">No image</span>
-                  )}
+                  <ProductImage src={p.image_url} category={p.category} name={p.name} />
                 </div>
                 {hasDeal && (
                   <span className="absolute top-2 left-2 text-xs font-bold bg-red-600 text-white rounded-full px-2 py-0.5">
