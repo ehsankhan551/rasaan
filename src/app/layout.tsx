@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { CartProvider } from "@/context/CartContext";
 
 export const metadata: Metadata = {
@@ -86,7 +87,8 @@ export default function RootLayout({
         />
         <CartProvider>
           <SiteHeader />
-          {children}
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
         </CartProvider>
       </body>
     </html>
