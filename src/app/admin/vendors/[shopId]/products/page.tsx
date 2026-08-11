@@ -32,7 +32,7 @@ export default async function AdminShopProductsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, description, price, stock_qty, active, image_url, category, department, generic_name")
+    .select("id, name, description, price, sale_price, stock_qty, active, image_url, category, department, generic_name")
     .eq("shop_id", shop.id)
     .order("created_at", { ascending: false });
 
