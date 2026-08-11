@@ -9,6 +9,7 @@ type Product = {
   name: string;
   description: string | null;
   price: number;
+  sale_price?: number | null;
   stock_qty: number;
   active: boolean;
   image_url: string | null;
@@ -36,6 +37,9 @@ export default function ProductRow({
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? "");
   const [price, setPrice] = useState(product.price);
+  const [salePrice, setSalePrice] = useState<string>(
+    product.sale_price != null ? String(product.sale_price) : ""
+  );
   const [imageUrl, setImageUrl] = useState(product.image_url ?? "");
   const [category, setCategory] = useState(product.category);
   const [department, setDepartment] = useState(product.department ?? "Unisex");
@@ -45,6 +49,7 @@ export default function ProductRow({
     setName(product.name);
     setDescription(product.description ?? "");
     setPrice(product.price);
+    setSalePrice(product.sale_price != null ? String(product.sale_price) : "");
     setImageUrl(product.image_url ?? "");
     setCategory(product.category);
     setDepartment(product.department ?? "Unisex");
@@ -87,11 +92,13 @@ export default function ProductRow({
   }
 
   function saveEdit() {
+    const trimmedSale = salePrice.trim();
     startTransition(async () => {
       await updateProduct(shopId, product.id, {
         name,
         description,
         price,
+        sale_price: trimmedSale === "" ? null : Number(trimmedSale),
         stock_qty: stock,
         image_url: imageUrl,
         category,
@@ -123,6 +130,18 @@ export default function ProductRow({
                 min={0}
                 value={price}
                 onChange={(e) => setPrice(Number(e.target.value))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1 text-red-600">Sale Price (Rs)</label>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                placeholder="Optional"
+                value={salePrice}
+                onChange={(e) => setSalePrice(e.target.value)}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
             </div>
@@ -239,6 +258,8 @@ export default function ProductRow({
     );
   }
 
+  const hasDeal = product.sale_price != null && Number(product.sale_price) < Number(product.price);
+
   return (
     <tr className="border-t border-gray-100">
       <td className="py-2 pr-3">
@@ -267,7 +288,16 @@ export default function ProductRow({
       <td className="py-2 pr-3">
         <span className="text-xs text-gray-500">{product.department ?? "Unisex"}</span>
       </td>
-      <td className="py-2 pr-3 text-sm">Rs {product.price}</td>
+      <td className="py-2 pr-3 text-sm">
+        {hasDeal ? (
+          <>
+            <span className="text-gray-400 line-through mr-1">Rs {product.price}</span>
+            <span className="text-red-600 font-semibold">Rs {product.sale_price}</span>
+          </>
+        ) : (
+          <>Rs {product.price}</>
+        )}
+      </td>
       <td className="py-2 pr-3">
         <input
           type="number"
