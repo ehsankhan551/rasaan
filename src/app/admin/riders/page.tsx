@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AssignForm from "./AssignForm";
+import InviteRiderForm from "./InviteRiderForm";
 
 const STATUS_LABEL: Record<string, string> = {
   unassigned: "Unassigned",
@@ -48,6 +49,7 @@ export default async function AdminRidersPage() {
     { data: unassigned },
     { data: active },
     { data: recentDelivered },
+    { data: pendingInvites },
   ] = await Promise.all([
     supabase.from("profiles").select("id, full_name, phone").eq("role", "rider"),
     supabase.from("rider_status").select("rider_id, available"),
@@ -67,6 +69,10 @@ export default async function AdminRidersPage() {
       .eq("status", "delivered")
       .order("delivered_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("pending_rider_invites")
+      .select("email, invited_at")
+      .order("invited_at", { ascending: false }),
   ]);
 
   const availabilityMap = new Map((statuses ?? []).map((s) => [s.rider_id, s.available]));
@@ -118,6 +124,8 @@ export default async function AdminRidersPage() {
           </div>
         ))}
       </div>
+
+      <InviteRiderForm pendingInvites={pendingInvites ?? []} />
 
       <h2 className="font-semibold mb-3">Registered riders</h2>
       <div className="space-y-2 mb-8">
