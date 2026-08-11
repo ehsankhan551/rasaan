@@ -4,6 +4,8 @@ import { PRODUCT_CATEGORIES, DEPARTMENTS } from "@/lib/categories";
 import AddToCartButton from "@/components/AddToCartButton";
 import NearbyShops from "@/components/NearbyShops";
 import ProductImage from "@/components/ProductImage";
+import HeroCarousel from "@/components/HeroCarousel";
+import AnimatedStats from "@/components/AnimatedStats";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Groceries": "🛒",
@@ -31,7 +33,7 @@ const FEATURES = [
   { icon: "🚚", title: "Fast local delivery", desc: "Riders pick up from nearby shops" },
   { icon: "💵", title: "Cash on delivery", desc: "Or pay online — your choice" },
   { icon: "🏪", title: "Verified local shops", desc: "Real vendors from your area" },
-  { icon: "↩️", title: "Easy support", desc: "Help with orders, anytime" },
+  { icon: "💬", title: "Ask our assistant", desc: "Tap the chat bubble for help" },
 ];
 
 type RawProduct = {
@@ -75,20 +77,37 @@ function diversifyByShop<T extends { shop_id: string }>(items: T[], limit: numbe
 export default async function Home() {
   const supabase = await createClient();
 
-  const { data: hotProductsRaw } = await supabase
-    .from("products")
-    .select("id, name, price, image_url, category, shop_id, shops!inner(name)")
-    .eq("active", true)
-    .order("created_at", { ascending: false })
-    .limit(60);
-
-  const { data: rawDeals } = await supabase
-    .from("products")
-    .select("id, name, price, sale_price, image_url, category, shop_id, shops!inner(name)")
-    .eq("active", true)
-    .not("sale_price", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(80);
+  const [
+    { data: hotProductsRaw },
+    { data: rawDeals },
+    { count: productCount },
+    { count: shopCount },
+    { count: deliveredCount },
+  ] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, name, price, image_url, category, shop_id, shops!inner(name)")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(60),
+    supabase
+      .from("products")
+      .select("id, name, price, sale_price, image_url, category, shop_id, shops!inner(name)")
+      .eq("active", true)
+      .not("sale_price", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(80),
+    supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
+    supabase
+      .from("shops")
+      .select("id", { count: "exact", head: true })
+      .eq("approved", true)
+      .eq("active", true),
+    supabase
+      .from("deliveries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "delivered"),
+  ]);
 
   const dealCandidates = ((rawDeals ?? []) as unknown as RawProduct[]).filter(
     (p) => p.sale_price && Number(p.sale_price) < Number(p.price)
@@ -101,36 +120,17 @@ export default async function Home() {
       <section className="relative overflow-hidden bg-gradient-to-br from-green-800 via-green-700 to-emerald-600 text-white">
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full bg-black/10 blur-3xl" />
-        <div className="relative mx-auto max-w-6xl px-4 py-16 text-center">
-          <h1 className="text-3xl sm:text-5xl font-bold mb-4 leading-tight">
-            Everything your neighborhood shops sell — delivered to your door
-          </h1>
-          <p className="text-green-50/90 max-w-xl mx-auto mb-8 text-base sm:text-lg">
-            Groceries, cosmetics, medicine, electronics and more from local shops near you. Cash
-            on delivery or pay online.
-          </p>
-          <div className="flex justify-center gap-3 flex-wrap">
-            <Link
-              href="/products"
-              className="rounded-xl bg-white text-green-800 font-semibold px-6 py-3 shadow-lg shadow-black/10 hover:bg-green-50 transition-colors"
-            >
-              Shop All Products
-            </Link>
-            <Link
-              href="/shops"
-              className="rounded-xl border border-white/50 bg-white/5 text-white font-semibold px-6 py-3 backdrop-blur hover:bg-white/15 transition-colors"
-            >
-              Browse Shops
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-xl border border-white/50 bg-white/5 text-white font-semibold px-6 py-3 backdrop-blur hover:bg-white/15 transition-colors"
-            >
-              Become a Vendor
-            </Link>
-          </div>
+        <div className="relative">
+          <HeroCarousel />
         </div>
       </section>
+
+      <AnimatedStats
+        productCount={productCount ?? 0}
+        shopCount={shopCount ?? 0}
+        categoryCount={PRODUCT_CATEGORIES.length}
+        deliveredCount={deliveredCount ?? 0}
+      />
 
       <section className="border-b border-gray-100 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -286,28 +286,6 @@ export default async function Home() {
           </div>
         </section>
       )}
-
-      <section className="mx-auto max-w-6xl px-4 py-12 border-t border-gray-100 grid gap-6 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="font-semibold mb-1.5">For Customers</h3>
-          <p className="text-sm text-gray-600">
-            Browse shops, order what you need, and pay by cash on delivery or online.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="font-semibold mb-1.5">For Vendors</h3>
-          <p className="text-sm text-gray-600">
-            List your products, manage orders, and choose your own delivery or use platform
-            riders.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="font-semibold mb-1.5">For Riders</h3>
-          <p className="text-sm text-gray-600">
-            Pick up available deliveries nearby and earn on your own schedule.
-          </p>
-        </div>
-      </section>
     </div>
   );
 }
