@@ -177,6 +177,7 @@ export async function updateProduct(
     name: string;
     description: string;
     price: number;
+    sale_price?: number | null;
     stock_qty: number;
     image_url: string;
     category: string;
@@ -189,6 +190,10 @@ export async function updateProduct(
   const name = data.name.trim();
   const description = data.description.trim();
   const price = Number(data.price);
+  const salePriceNum =
+    data.sale_price === null || data.sale_price === undefined || !Number.isFinite(Number(data.sale_price))
+      ? null
+      : Number(data.sale_price);
   const stockQty = Number(data.stock_qty);
   const imageUrlRaw = data.image_url.trim();
   const category = data.category.trim() || "Other";
@@ -205,6 +210,7 @@ export async function updateProduct(
       name,
       description,
       price,
+      sale_price: salePriceNum,
       stock_qty: Number.isFinite(stockQty) ? stockQty : 0,
       image_url: imageUrl,
       category,
