@@ -1,6 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
-export default function RiderLayout({ children }: { children: React.ReactNode }) {
+export default async function RiderLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/rider");
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "rider") redirect("/");
+
   return (
     <div className="flex-1 flex flex-col">
       <div className="border-b border-gray-200 bg-gray-50">
