@@ -381,3 +381,43 @@ create index if not exists wishlist_items_user_id_idx on wishlist_items(user_id)
 -- Optional discounted price. When set and lower than price, the product
 -- shows a "Deal" badge + strikethrough price across the app.
 alter table products add column if not exists sale_price numeric;
+
+-- ---------- ORDER TRACKING CHAT ----------
+-- In-app messaging scoped to a single order, between the customer and the
+-- rider assigned to deliver it (platform-fulfilled orders only). Keeps
+-- personal phone numbers out of the loop for day-to-day "where are you"
+-- coordination.
+create table if not exists order_messages (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  sender_id uuid not null references profiles(id),
+  sender_role text not null check (sender_role in ('customer', 'rider')),
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table order_messages enable row level security;
+
+create index if not exists order_messages_order_id_idx on order_messages (order_id, created_at);
+
+-- Only the order's customer, its assigned rider, or an admin can read/send.
+create policy "order_messages_participants_read" on order_messages
+  for select using (
+    exists (
+      select 1 from orders o
+      left join deliveries d on d.order_id = o.id
+      where o.id = order_messages.order_id
+        and (o.customer_id = auth.uid() or d.rider_id = auth.uid() or public.is_admin())
+    )
+  );
+
+create policy "order_messages_participants_insert" on order_messages
+  for insert with check (
+    sender_id = auth.uid()
+    and exists (
+      select 1 from orders o
+      left join deliveries d on d.order_id = o.id
+      where o.id = order_messages.order_id
+        and (o.customer_id = auth.uid() or d.rider_id = auth.uid() or public.is_admin())
+    )
+  );
