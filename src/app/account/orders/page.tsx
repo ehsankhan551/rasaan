@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
   accepted: "Accepted",
   preparing: "Preparing",
-  ready: "Ready",
+  ready: "Packed",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",
@@ -46,7 +47,11 @@ export default async function OrdersPage({
 
       <div className="space-y-3">
         {orders?.map((o) => (
-          <div key={o.id} className="rounded-xl border border-gray-200 p-4">
+          <Link
+            key={o.id}
+            href={`/account/orders/${o.id}`}
+            className="block rounded-xl border border-gray-200 p-4 hover:border-green-300 transition-colors"
+          >
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-medium">{(o.shops as unknown as { name: string } | null)?.name ?? "Shop"}</p>
@@ -65,7 +70,7 @@ export default async function OrdersPage({
               </span>
               <span className="font-semibold">Rs {o.total}</span>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </main>
