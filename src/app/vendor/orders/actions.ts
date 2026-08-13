@@ -24,3 +24,22 @@ export async function cancelOrder(orderId: string) {
   await supabase.from("orders").update({ status: "cancelled" }).eq("id", orderId);
   revalidatePath("/vendor/orders");
 }
+
+// Hand an order off to a real third-party courier company (TCS, Leopards,
+// PostEx, etc.) instead of self-delivering it. Records the courier name +
+// tracking number the vendor got from that courier's own portal, and moves
+// the order to "out for delivery" so the customer's timeline reflects it.
+export async function setCourierInfo(orderId: string, currentStatus: string, courierName: string, trackingNumber: string) {
+  if (!courierName.trim()) return;
+  const supabase = await createClient();
+  const update: Record<string, string> = {
+    courier_name: courierName.trim(),
+    courier_tracking_number: trackingNumber.trim(),
+  };
+  // Only push the status forward, never backward past where it already is.
+  if (!["out_for_delivery", "delivered", "cancelled"].includes(currentStatus)) {
+    update.status = "out_for_delivery";
+  }
+  await supabase.from("orders").update(update).eq("id", orderId);
+  revalidatePath("/vendor/orders");
+}
