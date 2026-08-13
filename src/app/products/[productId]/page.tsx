@@ -5,6 +5,7 @@ import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 import ReviewForm from "./ReviewForm";
 import ProductImage from "@/components/ProductImage";
+import DealCountdown from "@/components/DealCountdown";
 
 function Stars({ value, size = "text-sm" }: { value: number; size?: string }) {
   const rounded = Math.round(value);
@@ -27,7 +28,7 @@ export default async function ProductDetailPage({
   const { data: product } = await supabase
     .from("products")
     .select(
-      "id, name, description, price, sale_price, stock_qty, image_url, category, shop_id, shops!inner(id, name, address)"
+      "id, name, description, price, sale_price, deal_ends_at, stock_qty, image_url, category, shop_id, shops!inner(id, name, address)"
     )
     .eq("id", productId)
     .eq("active", true)
@@ -37,7 +38,10 @@ export default async function ProductDetailPage({
 
   const shop: any = Array.isArray(product.shops) ? product.shops[0] : product.shops;
 
-  const hasDeal = product.sale_price && Number(product.sale_price) < Number(product.price);
+  const dealExpired =
+    product.deal_ends_at != null && new Date(product.deal_ends_at) <= new Date();
+  const hasDeal =
+    product.sale_price && Number(product.sale_price) < Number(product.price) && !dealExpired;
   const discountPct = hasDeal
     ? Math.round((1 - Number(product.sale_price) / Number(product.price)) * 100)
     : 0;
@@ -113,13 +117,16 @@ export default async function ProductDetailPage({
           )}
 
           {hasDeal ? (
-            <div className="flex items-center gap-2 mt-4">
-              <p className="text-2xl font-bold text-red-600">
-                Rs {Number(product.sale_price).toFixed(0)}
-              </p>
-              <p className="text-base text-gray-400 line-through">
-                Rs {Number(product.price).toFixed(0)}
-              </p>
+            <div className="mt-4">
+              <div className="flex items-center gap-2">
+                <p className="text-2xl font-bold text-red-600">
+                  Rs {Number(product.sale_price).toFixed(0)}
+                </p>
+                <p className="text-base text-gray-400 line-through">
+                  Rs {Number(product.price).toFixed(0)}
+                </p>
+              </div>
+              <DealCountdown endsAt={product.deal_ends_at} className="mt-1 inline-block text-xs font-semibold text-orange-600 bg-orange-50 rounded-full px-2 py-1" />
             </div>
           ) : (
             <p className="text-2xl font-bold text-gray-900 mt-4">
