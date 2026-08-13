@@ -6,6 +6,7 @@ import NearbyShops from "@/components/NearbyShops";
 import ProductImage from "@/components/ProductImage";
 import HeroCarousel from "@/components/HeroCarousel";
 import AnimatedStats from "@/components/AnimatedStats";
+import DealCountdown from "@/components/DealCountdown";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Groceries": "🛒",
@@ -41,6 +42,7 @@ type RawProduct = {
   name: string;
   price: number;
   sale_price?: number | null;
+  deal_ends_at?: string | null;
   image_url: string | null;
   category: string | null;
   shop_id: string;
@@ -92,7 +94,7 @@ export default async function Home() {
       .limit(60),
     supabase
       .from("products")
-      .select("id, name, price, sale_price, image_url, category, shop_id, shops!inner(name)")
+      .select("id, name, price, sale_price, deal_ends_at, image_url, category, shop_id, shops!inner(name)")
       .eq("active", true)
       .not("sale_price", "is", null)
       .order("created_at", { ascending: false })
@@ -110,7 +112,10 @@ export default async function Home() {
   ]);
 
   const dealCandidates = ((rawDeals ?? []) as unknown as RawProduct[]).filter(
-    (p) => p.sale_price && Number(p.sale_price) < Number(p.price)
+    (p) =>
+      p.sale_price &&
+      Number(p.sale_price) < Number(p.price) &&
+      (!p.deal_ends_at || new Date(p.deal_ends_at) > new Date())
   );
   const dealProducts = diversifyByShop(dealCandidates, 8);
   const hotProducts = diversifyByShop((hotProductsRaw ?? []) as unknown as RawProduct[], 8);
@@ -184,6 +189,7 @@ export default async function Home() {
                       <span className="font-bold text-red-600">Rs {Number(p.sale_price).toFixed(0)}</span>
                       <span className="text-xs text-gray-400 line-through">Rs {Number(p.price).toFixed(0)}</span>
                     </div>
+                    <DealCountdown endsAt={p.deal_ends_at} className="mt-1 inline-block text-[10px] font-semibold text-orange-600 bg-orange-50 rounded-full px-2 py-0.5" />
                   </div>
                 </Link>
               );
