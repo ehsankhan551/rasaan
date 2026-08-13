@@ -421,3 +421,11 @@ create policy "order_messages_participants_insert" on order_messages
         and (o.customer_id = auth.uid() or d.rider_id = auth.uid() or public.is_admin())
     )
   );
+
+-- ---------- COURIER HAND-OFF ----------
+-- A vendor doing self-delivery can hand an order off to a real third-party
+-- courier company (TCS, Leopards, PostEx, etc.) instead of delivering it
+-- themselves. These are informational fields the vendor fills in from the
+-- courier's own booking confirmation.
+alter table orders add column if not exists courier_name text;
+alter table orders add column if not exists courier_tracking_number text;
