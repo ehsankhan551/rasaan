@@ -23,7 +23,7 @@ export default async function VendorOrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, status, payment_method, payment_status, delivery_mode, total, created_at, delivery_address, delivery_phone"
+      "id, status, payment_method, payment_status, delivery_mode, total, created_at, delivery_address, delivery_phone, courier_name, courier_tracking_number"
     )
     .eq("shop_id", shop.id)
     .order("created_at", { ascending: false });
