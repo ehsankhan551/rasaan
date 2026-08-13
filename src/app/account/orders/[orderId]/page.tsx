@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import OrderTimeline from "@/components/OrderTimeline";
 import OrderChat from "@/components/OrderChat";
+import { COURIER_TRACKING_URLS } from "@/lib/couriers";
 
 export default async function OrderDetailPage({
   params,
@@ -19,7 +20,7 @@ export default async function OrderDetailPage({
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, status, payment_method, payment_status, delivery_mode, delivery_address, delivery_phone, subtotal, delivery_fee, total, notes, created_at, shop_id, shops(name)"
+      "id, status, payment_method, payment_status, delivery_mode, delivery_address, delivery_phone, subtotal, delivery_fee, total, notes, created_at, shop_id, shops(name), courier_name, courier_tracking_number"
     )
     .eq("id", orderId)
     .eq("customer_id", user.id)
@@ -57,6 +58,7 @@ export default async function OrderDetailPage({
     !!delivery?.rider_id &&
     order.status !== "delivered" &&
     order.status !== "cancelled";
+  const trackingUrl = order.courier_name ? COURIER_TRACKING_URLS[order.courier_name] : null;
 
   return (
     <main className="flex-1 mx-auto max-w-2xl w-full px-4 py-10">
@@ -75,6 +77,27 @@ export default async function OrderDetailPage({
           deliveryStatus={delivery?.status}
         />
       </div>
+
+      {order.courier_name && (
+        <div className="rounded-xl border border-gray-200 p-4 mb-6">
+          <p className="text-sm font-medium mb-1">Shipped via {order.courier_name}</p>
+          {order.courier_tracking_number && (
+            <p className="text-xs text-gray-600 mb-2">
+              Tracking number: <span className="font-mono">{order.courier_tracking_number}</span>
+            </p>
+          )}
+          {trackingUrl && (
+            <a
+              href={trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-green-700 font-medium underline"
+            >
+              Track on {order.courier_name}&apos;s website →
+            </a>
+          )}
+        </div>
+      )}
 
       {order.delivery_mode === "platform" && delivery?.rider_id && (
         <div className="rounded-xl border border-gray-200 p-4 mb-6">
