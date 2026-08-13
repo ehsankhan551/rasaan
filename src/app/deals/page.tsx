@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 import ProductImage from "@/components/ProductImage";
+import DealCountdown from "@/components/DealCountdown";
 
 export default async function DealsPage() {
   const supabase = await createClient();
@@ -10,7 +11,7 @@ export default async function DealsPage() {
   const { data: raw } = await supabase
     .from("products")
     .select(
-      "id, name, price, sale_price, stock_qty, image_url, category, shop_id, shops!inner(name)"
+      "id, name, price, sale_price, deal_ends_at, stock_qty, image_url, category, shop_id, shops!inner(name)"
     )
     .eq("active", true)
     .not("sale_price", "is", null)
@@ -18,7 +19,10 @@ export default async function DealsPage() {
     .limit(200);
 
   const products = (raw ?? []).filter(
-    (p: any) => p.sale_price && Number(p.sale_price) < Number(p.price)
+    (p: any) =>
+      p.sale_price &&
+      Number(p.sale_price) < Number(p.price) &&
+      (!p.deal_ends_at || new Date(p.deal_ends_at) > new Date())
   );
 
   const {
@@ -78,6 +82,7 @@ export default async function DealsPage() {
                   <span className="text-xs rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 w-fit">
                     {p.category}
                   </span>
+                  <DealCountdown endsAt={p.deal_ends_at} />
                   <div className="mt-auto flex items-center justify-between pt-2">
                     <div className="flex items-center gap-1.5">
                       <span className="font-bold text-red-600">Rs {Number(p.sale_price).toFixed(0)}</span>
