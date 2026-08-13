@@ -36,10 +36,20 @@ export async function claimDelivery(deliveryId: string) {
 
 export async function markPickedUp(deliveryId: string) {
   const supabase = await createClient();
-  await supabase
+  const { data: delivery } = await supabase
     .from("deliveries")
     .update({ status: "picked_up", picked_up_at: new Date().toISOString() })
-    .eq("id", deliveryId);
+    .eq("id", deliveryId)
+    .select("order_id")
+    .single();
+
+  // Keep the customer-facing order timeline in sync: the moment a rider
+  // physically picks up the order, it's "on the way" from the customer's
+  // point of view too.
+  if (delivery?.order_id) {
+    await supabase.from("orders").update({ status: "out_for_delivery" }).eq("id", delivery.order_id);
+  }
+
   revalidatePath("/rider/deliveries");
 }
 
