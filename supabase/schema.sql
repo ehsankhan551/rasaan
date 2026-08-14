@@ -429,3 +429,10 @@ create policy "order_messages_participants_insert" on order_messages
 -- courier's own booking confirmation.
 alter table orders add column if not exists courier_name text;
 alter table orders add column if not exists courier_tracking_number text;
+
+-- ---------- FLASH SALE COUNTDOWN ----------
+-- Optional expiry for a deal. When set and in the past, the deal is treated
+-- as over (hidden from Hot Deals / /deals, price reverts to normal) even
+-- though sale_price is still stored — lets a vendor/admin schedule a flash
+-- sale without having to remember to clear sale_price manually afterward.
+alter table products add column if not exists deal_ends_at timestamptz;
