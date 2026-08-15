@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { awardLoyaltyPoints } from "@/lib/loyalty";
 
 export async function setAvailability(available: boolean) {
   const supabase = await createClient();
@@ -60,5 +61,6 @@ export async function markDelivered(deliveryId: string, orderId: string) {
     .update({ status: "delivered", delivered_at: new Date().toISOString() })
     .eq("id", deliveryId);
   await supabase.from("orders").update({ status: "delivered" }).eq("id", orderId);
+  await awardLoyaltyPoints(supabase, orderId);
   revalidatePath("/rider/deliveries");
 }
