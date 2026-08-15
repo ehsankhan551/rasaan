@@ -436,3 +436,21 @@ alter table orders add column if not exists courier_tracking_number text;
 -- though sale_price is still stored — lets a vendor/admin schedule a flash
 -- sale without having to remember to clear sale_price manually afterward.
 alter table products add column if not exists deal_ends_at timestamptz;
+
+-- ---------- LOYALTY POINTS ----------
+-- Simple earn-and-track program: customers earn 1 point per Rs 100 spent on
+-- a delivered order (see src/lib/loyalty.ts). No redemption flow yet -- this
+-- lays the earning + balance foundation; redemption can be added later.
+alter table profiles add column if not exists loyalty_points integer not null default 0;
+alter table orders add column if not exists loyalty_awarded boolean not null default false;
+
+-- security definer so a customer-facing action (award on delivery, run by
+-- the rider/vendor's own session) can credit a *different* user's balance
+-- without needing a broad profiles UPDATE policy for everyone.
+create or replace function public.add_loyalty_points(p_user_id uuid, p_points integer)
+returns void
+language sql
+security definer set search_path = public
+as $$
+  update profiles set loyalty_points = loyalty_points + p_points where id = p_user_id;
+$$;
