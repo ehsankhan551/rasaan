@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import AddToCartButton from "@/components/AddToCartButton";
 import WishlistButton from "@/components/WishlistButton";
 import ReviewForm from "./ReviewForm";
+import QAForm from "./QAForm";
+import AnswerForm from "./AnswerForm";
 import ProductImage from "@/components/ProductImage";
 import DealCountdown from "@/components/DealCountdown";
 
@@ -28,7 +30,7 @@ export default async function ProductDetailPage({
   const { data: product } = await supabase
     .from("products")
     .select(
-      "id, name, description, price, sale_price, deal_ends_at, stock_qty, image_url, category, shop_id, shops!inner(id, name, address)"
+      "id, name, description, price, sale_price, deal_ends_at, stock_qty, image_url, category, shop_id, shops!inner(id, name, address, vendor_id)"
     )
     .eq("id", productId)
     .eq("active", true)
@@ -66,11 +68,18 @@ export default async function ProductDetailPage({
       ? (reviews as any[]).reduce((sum, r) => sum + r.rating, 0) / reviewCount
       : 0;
 
+  const { data: questions } = await supabase
+    .from("product_questions")
+    .select("id, question, answer, answered_at, created_at")
+    .eq("product_id", productId)
+    .order("created_at", { ascending: false });
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   let wishlisted = false;
+  let canAnswer = false;
   if (user) {
     const { data: w } = await supabase
       .from("wishlist_items")
@@ -79,6 +88,13 @@ export default async function ProductDetailPage({
       .eq("product_id", product.id)
       .maybeSingle();
     wishlisted = !!w;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    canAnswer = profile?.role === "admin" || user.id === shop?.vendor_id;
   }
 
   return (
@@ -192,6 +208,44 @@ export default async function ProductDetailPage({
           </div>
         ) : (
           <p className="text-sm text-gray-400 mt-4">Be the first to review this product.</p>
+        )}
+      </div>
+
+      <div className="mt-12 border-t border-gray-200 pt-8">
+        <h2 className="text-lg font-semibold mb-4">
+          Questions &amp; Answers {questions && questions.length > 0 && `(${questions.length})`}
+        </h2>
+
+        {user ? (
+          <QAForm productId={product.id} />
+        ) : (
+          <p className="text-sm text-gray-500 mb-4">
+            <Link href={`/login?next=/products/${product.id}`} className="text-green-700 hover:underline">
+              Log in
+            </Link>{" "}
+            to ask a question.
+          </p>
+        )}
+
+        {questions && questions.length > 0 ? (
+          <div className="mt-6 space-y-4">
+            {(questions as any[]).map((q) => (
+              <div key={q.id} className="border border-gray-200 rounded-xl p-4">
+                <p className="text-sm font-medium text-gray-900">Q: {q.question}</p>
+                {q.answer ? (
+                  <p className="text-sm text-gray-600 mt-2">
+                    <span className="font-semibold text-green-700">A:</span> {q.answer}
+                  </p>
+                ) : canAnswer ? (
+                  <AnswerForm questionId={q.id} productId={product.id} />
+                ) : (
+                  <p className="text-xs text-gray-400 mt-2">Awaiting seller reply.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 mt-4">No questions yet. Be the first to ask.</p>
         )}
       </div>
 
