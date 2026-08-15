@@ -25,15 +25,28 @@ export default async function OrdersPage({
 
   if (!user) redirect("/login?next=/account/orders");
 
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id, status, payment_method, payment_status, total, created_at, shop_id, shops(name)")
-    .eq("customer_id", user.id)
-    .order("created_at", { ascending: false });
+  const [{ data: orders }, { data: profile }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id, status, payment_method, payment_status, total, created_at, shop_id, shops(name)")
+      .eq("customer_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase.from("profiles").select("loyalty_points").eq("id", user.id).single(),
+  ]);
 
   return (
     <main className="flex-1 mx-auto max-w-3xl w-full px-4 py-10">
       <h1 className="text-2xl font-bold mb-6">My Orders</h1>
+
+      <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-6">
+        <div>
+          <p className="text-sm font-semibold text-amber-900">Rasaan Rewards</p>
+          <p className="text-xs text-amber-700">Earn 1 point per Rs 100 spent on delivered orders.</p>
+        </div>
+        <p className="text-2xl font-bold text-amber-900">
+          {profile?.loyalty_points ?? 0} <span className="text-xs font-medium text-amber-700">pts</span>
+        </p>
+      </div>
 
       {placed && (
         <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 mb-4">
