@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { awardLoyaltyPoints } from "@/lib/loyalty";
 
 const NEXT_STATUS: Record<string, string> = {
   pending: "accepted",
@@ -16,6 +17,9 @@ export async function advanceOrderStatus(orderId: string, currentStatus: string)
   if (!next) return;
   const supabase = await createClient();
   await supabase.from("orders").update({ status: next }).eq("id", orderId);
+  if (next === "delivered") {
+    await awardLoyaltyPoints(supabase, orderId);
+  }
   revalidatePath("/vendor/orders");
 }
 
