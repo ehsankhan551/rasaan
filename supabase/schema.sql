@@ -454,3 +454,35 @@ security definer set search_path = public
 as $$
   update profiles set loyalty_points = loyalty_points + p_points where id = p_user_id;
 $$;
+
+-- ---------- PRODUCT Q&A ----------
+-- Public, threaded per-product questions. Any logged-in customer can ask;
+-- the product's own shop vendor (or an admin) can answer. Modeled after
+-- Amazon-style "Customer Questions & Answers" -- visible to everyone,
+-- answered inline, one answer per question (keeps it simple for v1).
+create table if not exists product_questions (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references products(id) on delete cascade,
+  customer_id uuid not null references profiles(id) on delete cascade,
+  question text not null,
+  answer text,
+  answered_by uuid references profiles(id),
+  answered_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table product_questions enable row level security;
+
+create index if not exists product_questions_product_id_idx on product_questions (product_id, created_at);
+
+create policy "product_questions_select_all" on product_questions for select using (true);
+create policy "product_questions_insert_own" on product_questions
+  for insert to authenticated with check (auth.uid() = customer_id);
+create policy "product_questions_answer_vendor_or_admin" on product_questions
+  for update using (
+    public.is_admin()
+    or exists (
+      select 1 from products p join shops s on s.id = p.shop_id
+      where p.id = product_id and s.vendor_id = auth.uid()
+    )
+  );
