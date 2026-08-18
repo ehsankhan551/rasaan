@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 export async function approveShop(shopId: string) {
@@ -33,6 +34,47 @@ export async function inviteVendor(shopId: string, email: string) {
     .update({ pending_vendor_email: email.trim().toLowerCase(), vendor_id: null })
     .eq("id", shopId);
   revalidatePath("/admin/vendors");
+}
+
+// Creates a brand-new login for a vendor directly (no invite email needed).
+// Uses the service-role admin API to create the auth user immediately
+// active, tags them as role "vendor" via user metadata (handle_new_user()
+// picks that up the same way it would for a normal signup), then attaches
+// the shop to them right away. Give the admin-chosen password to the
+// vendor out of band -- they can change it later via "Forgot password".
+export async function createVendorLogin(
+  shopId: string,
+  email: string,
+  fullName: string,
+  password: string
+) {
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail) return { error: "Enter the vendor's email." };
+  if (!password || password.length < 6) {
+    return { error: "Password must be at least 6 characters." };
+  }
+
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email: trimmedEmail,
+    password,
+    email_confirm: true,
+    user_metadata: { role: "vendor", full_name: fullName.trim() },
+  });
+
+  if (error || !data.user) {
+    return { error: error?.message || "Could not create the vendor account." };
+  }
+
+  const supabase = await createClient();
+  await supabase
+    .from("shops")
+    .update({ vendor_id: data.user.id, pending_vendor_email: null })
+    .eq("id", shopId);
+
+  revalidatePath("/admin/vendors");
+  return { error: null };
 }
 
 export async function unassignVendor(shopId: string) {
