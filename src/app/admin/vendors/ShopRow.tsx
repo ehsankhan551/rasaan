@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { approveShop, setShopActive, assignVendor, inviteVendor, unassignVendor, cloneShop } from "./actions";
+import { approveShop, setShopActive, assignVendor, inviteVendor, createVendorLogin, unassignVendor, cloneShop } from "./actions";
 
 type Shop = {
   id: string;
@@ -28,9 +28,23 @@ export default function ShopRow({
 }) {
   const [pending, startTransition] = useTransition();
   const [showAssign, setShowAssign] = useState(false);
-  const [mode, setMode] = useState<"existing" | "invite">("existing");
+  const [mode, setMode] = useState<"existing" | "invite" | "create">("existing");
   const [selectedVendor, setSelectedVendor] = useState("");
   const [email, setEmail] = useState("");
+
+  const [createEmail, setCreateEmail] = useState("");
+  const [createName, setCreateName] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [creatingLogin, setCreatingLogin] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [createdInfo, setCreatedInfo] = useState<{ email: string; password: string } | null>(null);
+
+  function generatePassword() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+    let out = "";
+    for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    setCreatePassword(out);
+  }
 
   const [showClone, setShowClone] = useState(false);
   const [cloneName, setCloneName] = useState("");
@@ -46,6 +60,25 @@ export default function ShopRow({
     } else if (mode === "invite" && email) {
       startTransition(() => inviteVendor(shop.id, email));
       setShowAssign(false);
+    } else if (mode === "create") {
+      if (!createEmail.trim() || !createPassword.trim()) {
+        setCreateError("Enter an email and password.");
+        return;
+      }
+      setCreateError("");
+      setCreatingLogin(true);
+      startTransition(async () => {
+        const res = await createVendorLogin(shop.id, createEmail, createName, createPassword);
+        setCreatingLogin(false);
+        if (res?.error) {
+          setCreateError(res.error);
+          return;
+        }
+        setCreatedInfo({ email: createEmail.trim().toLowerCase(), password: createPassword });
+        setCreateEmail("");
+        setCreateName("");
+        setCreatePassword("");
+      });
     }
   }
 
@@ -160,6 +193,10 @@ export default function ShopRow({
               <input type="radio" checked={mode === "invite"} onChange={() => setMode("invite")} />
               Invite by email
             </label>
+            <label className="flex items-center gap-1">
+              <input type="radio" checked={mode === "create"} onChange={() => setMode("create")} />
+              Create login
+            </label>
           </div>
           {mode === "existing" ? (
             <select
@@ -174,7 +211,7 @@ export default function ShopRow({
                 </option>
               ))}
             </select>
-          ) : (
+          ) : mode === "invite" ? (
             <input
               type="email"
               value={email}
@@ -182,14 +219,66 @@ export default function ShopRow({
               placeholder="vendor@example.com"
               className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
             />
+          ) : (
+            <div className="w-full space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="email"
+                  value={createEmail}
+                  onChange={(e) => setCreateEmail(e.target.value)}
+                  placeholder="vendor@example.com"
+                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                />
+                <input
+                  type="text"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="Full name"
+                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                />
+                <input
+                  type="text"
+                  value={createPassword}
+                  onChange={(e) => setCreatePassword(e.target.value)}
+                  placeholder="Password"
+                  className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={generatePassword}
+                  className="rounded-lg bg-gray-200 text-gray-700 text-xs font-medium px-2 py-1"
+                >
+                  Generate
+                </button>
+              </div>
+              {createError && <p className="text-xs text-red-600">{createError}</p>}
+              {createdInfo && (
+                <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
+                  Login created: <span className="font-medium">{createdInfo.email}</span> / password{" "}
+                  <span className="font-medium">{createdInfo.password}</span> — copy this now and send it to the
+                  vendor, it won't be shown again.
+                </p>
+              )}
+            </div>
           )}
-          <button
-            disabled={pending}
-            onClick={submitAssign}
-            className="rounded-lg bg-gray-800 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60"
-          >
-            {mode === "existing" ? "Assign" : "Invite"}
-          </button>
+          {mode !== "create" && (
+            <button
+              disabled={pending}
+              onClick={submitAssign}
+              className="rounded-lg bg-gray-800 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60"
+            >
+              {mode === "existing" ? "Assign" : "Invite"}
+            </button>
+          )}
+          {mode === "create" && (
+            <button
+              disabled={pending || creatingLogin}
+              onClick={submitAssign}
+              className="rounded-lg bg-gray-800 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60"
+            >
+              {creatingLogin ? "Creating..." : "Create login"}
+            </button>
+          )}
         </div>
       )}
 
